@@ -1,3 +1,6 @@
+-- Turtle mod for Minetest
+-- License: LGPL
+
 local FUEL_EFFICIENCY = 3	-- How many moves can the turtle do with a second fuel
 local TURTLES_FORCE_LOAD = true	-- Useless for now, has to wait until force_load is merged
 
@@ -49,6 +52,15 @@ end
 local get_turtle_info
 
 turtle_infos = read_file(wpath.."/turtle_infos")
+for _,i in pairs(turtle_infos) do
+	if i["co"]~= nil then
+		local env=create_environment(_)
+		i["co"]=pluto.unpersist({["coroutine.yield"]=env.coroutine.yield,
+					["turtle.forward"]=env.turtle.forward,
+					["delay"]=env.delay},i["co"])
+		i["env"]=env
+	end
+end
 turtle_updates = read_file(wpath.."/turtle_updates")
 
 turtle_updates_to_add={}
@@ -72,6 +84,21 @@ minetest.register_globalstep(function(dtime)
 	end
 end)
 
+minetest.register_globalstep(function(dtime)
+	for _,i in ipairs(turtle_infos) do
+		wait = i["wait"]
+		print(wait)
+		if wait~=nil then
+			wait = wait-dtime
+			if wait<=0 then
+				_,wait=coroutine.resume(i["co"])
+				print(dump(_))
+			end
+			i["wait"]=wait
+		end
+	end
+end)
+
 local function turtle_add_update(time, update)
 	table.insert(turtle_updates_to_add, {time=time, update=update})
 end
@@ -80,6 +107,17 @@ minetest.register_on_shutdown(function()
 	for turtle,i in pairs(turtle_infos) do
 		i["turtle"]=nil
 		i["inventory"]=serialize_inv(turtle_invs:get_list(turtle))
+		if i["co"]~=nil then
+			env = i["env"]
+			i["env"]=nil
+			print("Serialize")
+			local perms={[env.turtle.forward]="turtle.forward",
+						[env.delay]="delay",
+						[env.coroutine.yield]="coroutine.yield"}
+			print("Perms set")
+			i["co"]=pluto.persist(perms,i["co"])
+			print("Done")
+		end
 	end
 	write_file(wpath.."/turtle_infos",turtle_infos)
 	for _, timer in ipairs(turtle_updates_to_add) do
@@ -268,34 +306,39 @@ tupdate = function(update)
 	end
 end
 
-local get_turtle_funcs = function(turtle)	
+get_turtle_funcs = function(turtle)	
 	return {
-		forward = function(iid)
-			if iid==nil then iid="nil" end
+		forward = function()
 			local info = get_turtle_info(turtle)
 			local tobject = info["turtle"]
-			if info["fuel"]==0 then
-				turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
-				return
-			end
-			if info["moveint"]==nil then
+			--if info["fuel"]==0 then
+			--	coroutine.yield(0)
+			--	return false
+			--end
+			--if info["moveint"]==nil then
 				local spos = info["spos"]
 				local dir = info["dir"]
 				info["npos"] = v3add(spos, getv(dir))
 				if not turtle_can_go(minetest.env:get_node(info["npos"]).name) then
 					info["npos"]=nil
-					turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
-					return
+					coroutine.yield(0)
+					return false
 				end
 				info["fuel"]=info["fuel"]-1
-				info["moveint"]=iid
+				--info["moveint"]=true
 				tobject.object:setvelocity(getv(dir))
-				turtle_add_update(1,{turtle=turtle, type="endmove", iid=iid})
-			else
-				turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
-			end
+				coroutine.yield(1)
+				info["spos"]=info["npos"]
+				info["npos"]=nil
+				tobject.object:setvelocity({x=0,y=0,z=0})
+				tobject.object:setpos(info["spos"])
+				return true
+			--else
+			--	coroutine.yield(0) -- How did this happen ?
+			--	return false
+			--end
 		end,
-		back = function(iid)
+		--[[back = function(iid)
 			if iid==nil then iid="nil" end
 			local info = get_turtle_info(turtle)
 			local tobject = info["turtle"]
@@ -628,7 +671,7 @@ local get_turtle_funcs = function(turtle)
 			for spos,stack in ipairs(frominv:get_list(frominvname)) do
 				if stack:get_name()~="" then
 					local leftover = turtle_invs:add_item(turtle,stack)
-					frominv:set_stack(frominvname, spos ,leftover)
+					frominv:set_stack(spos, leftover)
 					return
 				end
 			end
@@ -659,7 +702,7 @@ local get_turtle_funcs = function(turtle)
 			for spos,stack in ipairs(frominv:get_list(frominvname)) do
 				if stack:get_name()~="" then
 					local leftover = turtle_invs:add_item(turtle,stack)
-					frominv:set_stack(frominvname, spos, leftover)
+					frominv:set_stack(spos, leftover)
 					return
 				end
 			end
@@ -690,26 +733,29 @@ local get_turtle_funcs = function(turtle)
 			for spos,stack in ipairs(frominv:get_list(frominvname)) do
 				if stack:get_name()~="" then
 					local leftover = turtle_invs:add_item(turtle,stack)
-					frominv:set_stack(frominvname, spos, leftover)
+					frominv:set_stack(spos, leftover)
 					return
 				end
 			end
-		end,
+		end,]]
 	}
 end
 
 
 
-local create_environment = function(turtle, mem, event)
+create_environment = function(turtle)
 	-- Gather variables for the environment
-	return {
-			print = safe_print,
-			interrupt = getinterrupt(turtle),
-			turtle = get_turtle_funcs(turtle),
-			mem = mem,
-			tostring = tostring,
-			tonumber = tonumber,
-			string = {
+	local t = get_turtle_funcs(turtle)
+	local e = {
+			--[[print = safe_print,]]
+			turtle = t,
+			--[[tostring = tostring,
+			tonumber = tonumber,]]
+			delay = coroutine.yield,
+			coroutine = {
+				yield = coroutine.yield,
+			},
+			--[[string = {
 				byte = string.byte,
 				char = string.char,
 				find = string.find,
@@ -759,9 +805,10 @@ local create_environment = function(turtle, mem, event)
 				maxn = table.maxn,
 				remove = table.remove,
 				sort = table.sort
-			},
-			event = event,
+			},]]
 	}
+	get_turtle_info(turtle)["env"]=e
+	return e
 end
 
 local create_sandbox = function (code, env)
@@ -813,37 +860,39 @@ end
 -- Parsing function --
 ----------------------
 
-turtle_update = function (turtle, event)
+--local handlers = setmetatable({}, {__mode='kv'})
+
+--function error(e, level_) --FIX:level not handled
+--  coroutine.yield(e)
+--end
+
+launch_turtle = function (turtle)
 	local info = get_turtle_info(turtle)
-	if not interrupt_allow(turtle, event) then return end
-	if do_overheat(turtle) then return end
+	--if not interrupt_allow(turtle, event) then return end
+	--if do_overheat(turtle) then return end
 
 	-- load code & mem from memory
-	local mem  = load_memory(turtle)
+	--local mem  = load_memory(turtle)
 	local code = info["code"]
-
+	code = luahelpers.add_yields(code)
 	-- make sure code is ok and create environment
-	local prohibited = code_prohibited(code)
-	if prohibited then return prohibited end
-	local env = create_environment(turtle, mem, event)
-
-	-- create the sandbox and execute code
+	--local prohibited = code_prohibited(code)
+	--if prohibited then return prohibited end
+	local env = create_environment(turtle)
 	local chunk, msg = create_sandbox (code, env)
 	if not chunk then return msg end
-	local success, msg = pcall(f)
-	if not success then
-		print(msg)
-		update_formspec(turtle, code, msg, info["filename"], nil, "")
-	end
-
-	save_memory(turtle, mem)
+	local co=coroutine.create(chunk)
+	coroutine.resume(co)
+	info["co"]=co
+	info["wait"]=2
 end
 
 minetest.register_on_player_receive_fields(function(player, formname, fields)
 	if formname:sub(1,6)~="turtle" then return end
 	update_formspec(formname, fields.code, "", fields.filename, player, fields.exit)
 	if fields.program~=nil or fields.exit~=nil then
-		local err = turtle_update(formname, {type="program"})
+		--local err = turtle_update(formname, {type="program"})
+		local err = launch_turtle(formname)
 		if err then print(err) end
 		update_formspec(formname, fields.code, err, fields.filename, player, fields.exit)
 	end

@@ -1,2 +1,6 @@
 local modpath = minetest.get_modpath("turtle")
-dofile(modpath.."/turtle.lua")
+--dofile(modpath.."/turtle.lua")
+dofile(modpath.."/computer_memory.lua")
+dofile(modpath.."/forth_floppy.lua")
+dofile(modpath.."/cptr.lua")
+dofile(modpath.."/t.lua")
