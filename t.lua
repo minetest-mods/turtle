@@ -1,5 +1,5 @@
 local MAX_LINE_LENGHT = 28
-
+local DEBUG = true
 
 local serialize_inv = function(l)
 	local l2={}
@@ -309,6 +309,7 @@ end
 local function done_move(pos, spos, npos)
 	local dir = vector.subtract(npos, spos)
 	local move = vector.subtract(npos, pos)
+	s = dot(dir, move)
 	return dot(dir, move) <= 0
 end
 
@@ -320,6 +321,7 @@ minetest.register_entity("turtle:turtle", {
 	physical = true,
 	force_load = TURTLES_FORCE_LOAD,
 	collisionbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5},
+	collides_with_objects = false,
 	visual = "wielditem",
 	visual_size = {x = 2/3, y = 2/3},
 	textures = {"default:wood"},
@@ -383,8 +385,10 @@ minetest.register_entity("turtle:turtle", {
 		end
 		if info.formspec_changed then
 			for playername, _ in pairs(info.playernames) do
-				print(info.text)
-				print("------------------------------------")
+				if DEBUG then
+					print(info.text)
+					print("------------------------------------")
+				end
 				minetest.show_formspec(playername, self.n, info.formspec)
 			end
 			info.formspec_changed = nil

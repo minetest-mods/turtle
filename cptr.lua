@@ -1,6 +1,5 @@
 local CYCLES_PER_STEP = 1000
 local MAX_CYCLES = 100000
-local FUEL_EFFICIENCY = 3	-- How many moves can the turtle do with a second fuel
 
 local function file_exists(name)
 	local f = io.open(name, "r")
@@ -51,25 +50,25 @@ if bit32 == nil then
 	end
 end
 
-local function s16(x)
+function s16(x)
 	if bit32.band(x, 0x8000)~=0 then
 		return bit32.band(x, 0xffff)-0x10000
 	end
 	return bit32.band(x, 0xffff)
 end
 
-local function u16(x)
+function u16(x)
 	return bit32.band(x, 0xffff)
 end
 
-local function s32(x)
+function s32(x)
 	if bit32.band(x, 0x80000000)~=0 then
 		return bit32.band(x, 0xffffffff)-0x100000000
 	end
 	return bit32.band(x, 0xffffffff)
 end
 
-local function u32(x)
+function u32(x)
 	return bit32.band(x, 0xffffffff)
 end
 
@@ -154,152 +153,7 @@ local function send_message(turtle, cptr, maddr, mlen)
 	turtle_receptor_send(turtle, cptr.channel, msg)
 end
 
-local function getv(dir)
-	if dir==0 then return {x=0,y=0,z=1}
-	elseif dir==1 then return {x=1,y=0,z=0}
-	elseif dir==2 then return {x=0,y=0,z=-1}
-	elseif dir==3 then return {x=-1,y=0,z=0} end
-end
-
-local function turtle_can_go(nname)
-	return nname=="air" or minetest.registered_nodes[nname].liquidtype~="none"
-end
-
-local tl = {}
-
-function tl.forward(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local dir = info.dir
-	local npos = vector.add(spos, getv(dir))
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
-end
-
-function tl.backward(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local dir = info.dir
-	local npos = vector.add(spos, getv((dir+2)%4))
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
-end
-
-function tl.up(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local npos = vector.add(spos, {x=0, y=1, z=0})
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
-end
-
-function tl.down(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local npos = vector.add(spos, {x=0, y=-1, z=0})
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
-end
-
-function tl.turnleft(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	info.ndir = (info.dir+3)%4
-	info.rotate = math.pi/2
-	info.moving = true
-	cptr.paused = true
-end
-
-function tl.turnright(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	info.ndir = (info.dir+1)%4
-	info.rotate = -math.pi/2
-	info.moving = true
-	cptr.paused = true
-end
-
-local function stack_set_count(stack, count)
-	stack = stack:to_table()
-	if stack==nil then return nil end
-	stack.count=count
-	return ItemStack(stack)
-end
-
-function tl.refuel(turtle, cptr, slot, nmax)
-	local info = get_turtle_info(turtle)
-	local stack = turtle_invs:get_stack(turtle, slot)
-	local fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {stack}})
-	if fuel.time <= 0 then
-		cptr.X = 0
-		return
-	end
-	local count = math.min(stack:get_count(), nmax)
-	local fs = stack:to_table()
-	fs.count = 1
-	local fstack = ItemStack(fs)
-	local fuel, afterfuel
-	fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {fstack}})
-	stack:take_item(count)
-	if afterfuel ~= nil then
-		afterfuel = afterfuel.items[1]
-	end
-	if afterfuel ~= nil then
-		afterfuel = stack_set_count(afterfuel, afterfuel:get_count()*count)
-	end
-	if afterfuel ~= nil then
-		local leftover = stack:add_item(ItemStack(afterfuel))
-		turtle_invs:set_stack(turtle, slot, stack)
-		local leftover2 = turtle_invs:add_item(turtle, leftover)
-		minetest.add_item(info.spos,leftover2)
-	else
-		turtle_invs:set_stack(turtle, slot, stack)
-	end
-	info.fuel = info.fuel+FUEL_EFFICIENCY*count*fuel.time
-	cptr.X = u16(FUEL_EFFICIENCY*count*fuel.time)
-end
+dofile(modpath.."/api.lua")
 
 function run_computer(turtle, cptr)
 	if cptr.stopped then return end
@@ -440,7 +294,15 @@ ITABLE_RAW = {
 	[0x64] = "tl.turnleft(turtle, cptr)",
 	[0x65] = "tl.turnright(turtle, cptr)",
 	
-	[0x70] = "tl.refuel(turtle, cptr, cptr.X, cptr.Y)",
+	[0x68] = "tl.detect(turtle, cptr)",
+	[0x69] = "tl.detectup(turtle, cptr)",
+	[0x6a] = "tl.detectdown(turtle, cptr)",
+	
+	[0x70] = "tl.dig(turtle, cptr)",
+	[0x71] = "tl.digup(turtle, cptr)",
+	[0x72] = "tl.digdown(turtle, cptr)",
+	
+	[0x80] = "tl.refuel(turtle, cptr, cptr.X, cptr.Y)",
 }
 
 ITABLE = {}
