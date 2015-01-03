@@ -30,8 +30,9 @@ end
 
 bit32.bor = function(x, y)
 	-- Common usecases, they deserve to be optimized
-	if y == 0xff then return x%0x100 end
-	if y == 0xffff then return x%0x10000 end
+	if y == 0xff then return x - (x%0x100) + 0xff end
+	if y == 0xffff then return x - (x%0x10000) + 0xffff end
+	if y == 0xffffffff then return 0xffffffff end
 	
 	x, y = x%P, y%P
 	local r = 0
