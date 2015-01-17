@@ -136,7 +136,7 @@ end
 local function turtle_dig(turtle, cptr, dir)
 	local info = get_turtle_info(turtle)
 	local dpos = vector.add(info.spos, dir)
-	local dnode = minetest.env:get_node(dpos)
+	local dnode = minetest.get_node(dpos)
 	if turtle_can_go(dnode.name) or dnode.name == "ignore" then
 		cptr.X = 0
 		return
@@ -163,6 +163,39 @@ end
 
 function tl.digdown(turtle, cptr)
 	turtle_dig(turtle, cptr, {x = 0, y = -1, z = 0})
+end
+
+local function turtle_place(turtle, cptr, dir, slot)
+	local info = get_turtle_info(turtle)
+	local ppos = vector.add(info.spos, dir)
+	local dnode = minetest.get_node(ppos)
+	if (not turtle_can_go(dnode.name)) or dnode.name == "ignore" then
+		cptr.X = 0
+		return
+	end
+	local stack = turtle_invs:get_stack(turtle, slot)
+	if stack:is_empty() or minetest.registered_nodes[stack:get_name()] == nil then
+		cptr.X = 0
+		return
+	end
+	minetest.set_node(ppos, {name=stack:get_name()})
+	stack:take_item()
+	turtle_invs:set_stack(turtle, slot, stack)
+	cptr.X = u16(-1)
+	cptr.paused = true
+end
+
+function tl.place(turtle, cptr, slot)
+	local info = get_turtle_info(turtle)
+	turtle_place(turtle, cptr, getv(info.dir), slot)
+end
+
+function tl.placeup(turtle, cptr, slot)
+	turtle_place(turtle, cptr, {x = 0, y = 1, z = 0}, slot)
+end
+
+function tl.placedown(turtle, cptr, slot)
+	turtle_place(turtle, cptr, {x = 0, y = -1, z = 0}, slot)
 end
 
 local function stack_set_count(stack, count)
