@@ -306,7 +306,8 @@ ITABLE_RAW = {
 	[0x76] = "tl.placedown(turtle, cptr)",
 	
 	[0x80] = "tl.refuel(turtle, cptr, cptr.X, cptr.Y)",
-	[0x81] = "tl.select(turtle, cptr, cptr.X)"
+	[0x81] = "tl.select(turtle, cptr, cptr.X)",
+	[0x82] = "tl.get_energy(turtle, cptr)",
 }
 
 ITABLE = {}

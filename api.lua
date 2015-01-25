@@ -1,5 +1,5 @@
 local MOVE_COST = 100
-local FUEL_EFFICIENCY = 300
+local FUEL_EFFICIENCY = 10000
 tl = {}
 
 local function delay(x)
@@ -216,11 +216,9 @@ local function stack_set_count(stack, count)
 end
 
 function tl.refuel(turtle, cptr, slot, nmax)
-	-- TODO: update that
 	local info = turtles.get_turtle_info(turtle)
-	info.energy = info.energy + 100 * MOVE_COST
-	--[[local info = get_turtle_info(turtle)
-	local stack = turtle_invs:get_stack(turtle, slot)
+	local inv = turtles.get_turtle_inventory(turtle)
+	local stack = inv:get_stack("main", slot)
 	local fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {stack}})
 	if fuel.time <= 0 then
 		cptr.X = 0
@@ -238,15 +236,19 @@ function tl.refuel(turtle, cptr, slot, nmax)
 	end
 	if afterfuel ~= nil then
 		afterfuel = stack_set_count(afterfuel, afterfuel:get_count()*count)
-	end
-	if afterfuel ~= nil then
 		local leftover = stack:add_item(ItemStack(afterfuel))
-		turtle_invs:set_stack(turtle, slot, stack)
-		local leftover2 = turtle_invs:add_item(turtle, leftover)
-		minetest.add_item(info.spos,leftover2)
+		inv:set_stack("main", slot, stack)
+		local leftover2 = inv:add_item("main", leftover)
+		minetest.add_item(info.spos, leftover2)
 	else
-		turtle_invs:set_stack(turtle, slot, stack)
+		inv:set_stack("main", slot, stack)
 	end
-	info.fuel = info.fuel+FUEL_EFFICIENCY*count*fuel.time
-	cptr.X = u16(FUEL_EFFICIENCY*count*fuel.time)]]
+	info.energy = info.energy + FUEL_EFFICIENCY * count * fuel.time
+	cptr.X = u16(-1)
+end
+
+function tl.get_energy(turtle, cptr)
+	local info = turtles.get_turtle_info(turtle)
+	cptr.Y = u16(info.energy)
+	cptr.X = u16(math.floor(info.energy / 0x10000))
 end
