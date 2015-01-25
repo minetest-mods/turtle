@@ -159,7 +159,7 @@ function run_computer(turtle, cptr)
 	if cptr.stopped then return end
 	cptr.cycles = math.max(MAX_CYCLES, cptr.cycles + CYCLES_PER_STEP)
 	while true do
-		instr = cptr[cptr.PC]
+		local instr = cptr[cptr.PC]
 		local f = ITABLE[instr]
 		if f == nil then return end
 		cptr.PC = u16(cptr.PC + 1)
