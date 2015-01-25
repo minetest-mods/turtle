@@ -6,11 +6,15 @@ local function delay(x)
 	return function() return x end
 end
 
+local function pointable(stack, node)
+	local nodedef = minetest.registered_nodes[node.name]
+	local def = minetest.registered_items[stack:get_name()]
+	return nodedef and def and (nodedef.pointable or (nodedef.liquidtype ~= "none" and def.liquid_pointable))
+end
+
 local function create_turtle_player(turtle_id, dir)
 	local info = turtles.get_turtle_info(turtle_id)
 	local inv = turtles.get_turtle_inventory(turtle_id)
-	local under_pos = vector.add(info.spos, dir)
-	local above_pos = vector.add(under_pos, dir)
 	local pitch
 	local yaw
 	if dir.z > 0 then
@@ -64,7 +68,29 @@ local function create_turtle_player(turtle_id, dir)
 		set_detach = delay(),
 		set_bone_position = delay(),
 	}
-	local pointed_thing = {type = "node", under = under_pos, above = above_pos}
+	local above, under = nil, nil
+	local wieldstack = player:get_wielded_item()
+	local pos = vector.add(info.spos, dir)
+	if pointable(wieldstack, minetest.get_node(pos)) then
+		above = vector.new(info.spos)
+		under = pos
+	elseif pointable(wieldstack, minetest.get_node(vector.add(pos, dir))) then
+		above = pos
+		under = vector.add(pos, dir)
+	else
+		for i = 0, 5 do
+			local dir2 = directions.side_to_dir(i)
+			if vector.dot(dir2, dir) == 0 and pointable(wieldstack, minetest.get_node(vector.add(pos, dir2))) then
+				under = vector.add(pos, dir2)
+				break
+			end
+		end
+		above = pos
+	end
+	local pointed_thing = nil
+	if under ~= nil then
+		pointed_thing = {type = "node", above = above, under = under}
+	end
 	return player, pointed_thing
 end
 
@@ -157,17 +183,20 @@ end
 
 local function turtle_dig(turtle, cptr, dir)
 	local player, pointed_thing = create_turtle_player(turtle, dir)
+	if pointed_thing == nil then return end
+	local info = turtles.get_turtle_info(turtle)
 	local wieldstack = player:get_wielded_item()
 	local on_use = (minetest.registered_items[wieldstack:get_name()] or {}).on_use
 	if on_use then
 		player:set_wielded_item(on_use(wieldstack, player, pointed_thing) or wieldstack)
 	else
-		local pos = pointed_thing.under
+		local pos = info.spos
 		local node = minetest.get_node(pos)
 		local def = ItemStack({name = node.name}):get_definition()
 		local toolcaps = wieldstack:get_tool_capabilities()
 		local dp = minetest.get_dig_params(def.groups, toolcaps)
-		if dp.diggable and def.diggable and (not def.can_dig or def.can_dig(pos, player)) and
+		local dp2 = minetest.get_dig_params(def.groups, ItemStack(""):get_tool_capabilities())
+		if (dp.diggable or dp2.diggable) and def.diggable and def.pointable and (not def.can_dig or def.can_dig(pos, player)) and
 				(not minetest.is_protected(pos, player:get_player_name())) then
 			local on_dig = (minetest.registered_nodes[node.name] or {on_dig = minetest.node_dig}).on_dig
 			on_dig(pos, node, player)
@@ -190,6 +219,7 @@ end
 
 local function turtle_place(turtle, cptr, dir)
 	local player, pointed_thing = create_turtle_player(turtle, dir)
+	if pointed_thing == nil then return end
 	local wieldstack = player:get_wielded_item()
 	local on_place = (minetest.registered_items[wieldstack:get_name()] or {on_place = minetest.item_place}).on_place
 	player:set_wielded_item(on_place(wieldstack, player, pointed_thing) or wieldstack)
