@@ -168,7 +168,7 @@ local function turtle_dig(turtle, cptr, dir)
 		local toolcaps = wieldstack:get_tool_capabilities()
 		local dp = minetest.get_dig_params(def.groups, toolcaps)
 		if dp.diggable and def.diggable and (not def.can_dig or def.can_dig(pos, player)) and
-				(not minetest.is_protected(pos, player:get_player_name()) then
+				(not minetest.is_protected(pos, player:get_player_name())) then
 			local on_dig = (minetest.registered_nodes[node.name] or {on_dig = minetest.node_dig}).on_dig
 			on_dig(pos, node, player)
 		end
