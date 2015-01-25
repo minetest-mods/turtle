@@ -162,9 +162,16 @@ local function turtle_dig(turtle, cptr, dir)
 	if on_use then
 		player:set_wielded_item(on_use(wieldstack, player, pointed_thing) or wieldstack)
 	else
-		local under_node = minetest.get_node(pointed_thing.under)
-		local on_dig = (minetest.registered_nodes[under_node.name] or {on_dig = minetest.node_dig}).on_dig
-		on_dig(pointed_thing.under, under_node, player)
+		local pos = pointed_thing.under
+		local node = minetest.get_node(pos)
+		local def = ItemStack({name = node.name}):get_definition()
+		local toolcaps = wieldstack:get_tool_capabilities()
+		local dp = minetest.get_dig_params(def.groups, toolcaps)
+		if dp.diggable and def.diggable and (not def.can_dig or def.can_dig(pos, player)) and
+				(not minetest.is_protected(pos, player:get_player_name()) then
+			local on_dig = (minetest.registered_nodes[node.name] or {on_dig = minetest.node_dig}).on_dig
+			on_dig(pos, node, player)
+		end
 	end
 end
 
@@ -182,7 +189,10 @@ function tl.digdown(turtle, cptr)
 end
 
 local function turtle_place(turtle, cptr, dir)
-	-- TODO
+	local player, pointed_thing = create_turtle_player(turtle, dir)
+	local wieldstack = player:get_wielded_item()
+	local on_place = (minetest.registered_items[wieldstack:get_name()] or {on_place = minetest.item_place}).on_place
+	player:set_wielded_item(on_place(wieldstack, player, pointed_thing) or wieldstack)
 end
 
 function tl.place(turtle, cptr)
