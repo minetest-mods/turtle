@@ -1,128 +1,78 @@
-local FUEL_EFFICIENCY = 3	-- How many moves can the turtle do with a second of fuel
-
+local MOVE_COST = 100
+local FUEL_EFFICIENCY = 300
 tl = {}
-local function getv(dir)
-	if dir==0 then return {x=0,y=0,z=1}
-	elseif dir==1 then return {x=1,y=0,z=0}
-	elseif dir==2 then return {x=0,y=0,z=-1}
-	elseif dir==3 then return {x=-1,y=0,z=0} end
-end
 
-local function turtle_can_go(nname)
-	return nname == "air" or minetest.registered_nodes[nname].liquidtype ~= "none"
+local function tl_move(turtle, cptr, dir)
+	local info = turtles.get_turtle_info(turtle)
+	if info.energy < MOVE_COST then
+		cptr.X = 0
+		return
+	end
+	local spos = info.spos
+	local npos = vector.add(spos, dir)
+	if minetest.get_node(npos).name == "air" then
+		minetest.set_node(npos, {name = "turtle:turtle2"})
+		info.npos = npos
+		info.moving = true
+		info.energy = info.energy - MOVE_COST
+		cptr.X = u16(-1)
+		cptr.paused = true
+	else
+		cptr.X = 0
+	end
 end
 
 function tl.forward(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local dir = info.dir
-	local npos = vector.add(spos, getv(dir))
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
+	local dir = turtles.get_turtle_info(turtle).dir
+	tl_move(turtle, cptr, minetest.facedir_to_dir(dir))
 end
 
 function tl.backward(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local dir = info.dir
-	local npos = vector.add(spos, getv((dir+2)%4))
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
+	local dir = turtles.get_turtle_info(turtle).dir
+	tl_move(turtle, cptr, vector.multiply(minetest.facedir_to_dir(dir), -1))
 end
 
 function tl.up(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local npos = vector.add(spos, {x=0, y=1, z=0})
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
+	tl_move(turtle, cptr, {x = 0, y = 1, z = 0})
 end
 
 function tl.down(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	if info.fuel == 0 then
-		cptr.X = 0
-		return
-	end
-	local spos = info.spos
-	local npos = vector.add(spos, {x=0, y=-1, z=0})
-	if turtle_can_go(minetest.get_node(npos).name) then
-		info.npos = npos
-		info.moving = true
-		info.fuel = info.fuel - 1
-		cptr.X = u16(-1)
-		cptr.paused = true
-	else
-		cptr.X = 0
-	end
+	tl_move(turtle, cptr, {x = 0, y = -1, z = 0})
 end
 
 function tl.turnleft(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	info.ndir = (info.dir+3)%4
-	info.rotate = math.pi/2
+	local info = turtles.get_turtle_info(turtle)
+	info.ndir = (info.dir + 3) % 4
+	info.rotate = math.pi / 2
 	info.moving = true
 	cptr.paused = true
 end
 
 function tl.turnright(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	info.ndir = (info.dir+1)%4
-	info.rotate = -math.pi/2
+	local info = turtles.get_turtle_info(turtle)
+	info.ndir = (info.dir + 1) % 4
+	info.rotate = - math.pi / 2
 	info.moving = true
 	cptr.paused = true
 end
 
 local function write_string_at(cptr, addr, str)
-	for i=1, string.len(str) do
-		cptr[u16(addr-1+i)] = string.byte(str, i)
+	for i = 1, string.len(str) do
+		cptr[u16(addr - 1 + i)] = string.byte(str, i)
 	end
 	cptr.X = string.len(str)
 end
 
 local function turtle_detect(turtle, cptr, dir)
-	local info = get_turtle_info(turtle)
+	local info = turtles.get_turtle_info(turtle)
 	local pos = vector.add(info.spos, dir)
 	local name = minetest.get_node(pos).name
 	write_string_at(cptr, cptr.X, name)
 end
 
 function tl.detect(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	turtle_detect(turtle, cptr, getv(info.dir))
+	local info = turtles.get_turtle_info(turtle)
+	turtle_detect(turtle, cptr, minetest.facedir_to_dir(info.dir))
 end
 
 function tl.detectup(turtle, cptr)
@@ -134,27 +84,12 @@ function tl.detectdown(turtle, cptr)
 end
 
 local function turtle_dig(turtle, cptr, dir)
-	local info = get_turtle_info(turtle)
-	local dpos = vector.add(info.spos, dir)
-	local dnode = minetest.get_node(dpos)
-	if turtle_can_go(dnode.name) or dnode.name == "ignore" then
-		cptr.X = 0
-		return
-	end
-	local drops = minetest.get_node_drops(dnode.name, "default:pick_mese")
-	local _, dropped_item
-	for _, dropped_item in ipairs(drops) do
-		local leftover = turtle_invs:add_item(turtle,dropped_item)
-		minetest.add_item(info.spos,leftover)
-	end
-	minetest.remove_node(dpos)
-	cptr.X = u16(-1)
-	cptr.paused = true
+	-- TODO
 end
 
 function tl.dig(turtle, cptr)
-	local info = get_turtle_info(turtle)
-	turtle_dig(turtle, cptr, getv(info.dir))
+	local info = turtles.get_turtle_info(turtle)
+	turtle_dig(turtle, cptr, minetest.facedir_to_dir(info.dir))
 end
 
 function tl.digup(turtle, cptr)
@@ -166,28 +101,12 @@ function tl.digdown(turtle, cptr)
 end
 
 local function turtle_place(turtle, cptr, dir, slot)
-	local info = get_turtle_info(turtle)
-	local ppos = vector.add(info.spos, dir)
-	local dnode = minetest.get_node(ppos)
-	if (not turtle_can_go(dnode.name)) or dnode.name == "ignore" then
-		cptr.X = 0
-		return
-	end
-	local stack = turtle_invs:get_stack(turtle, slot)
-	if stack:is_empty() or minetest.registered_nodes[stack:get_name()] == nil then
-		cptr.X = 0
-		return
-	end
-	minetest.set_node(ppos, {name=stack:get_name()})
-	stack:take_item()
-	turtle_invs:set_stack(turtle, slot, stack)
-	cptr.X = u16(-1)
-	cptr.paused = true
+	-- TODO
 end
 
 function tl.place(turtle, cptr, slot)
-	local info = get_turtle_info(turtle)
-	turtle_place(turtle, cptr, getv(info.dir), slot)
+	local info = turtles.get_turtle_info(turtle)
+	turtle_place(turtle, cptr, minetest.facedir_to_dir(info.dir), slot)
 end
 
 function tl.placeup(turtle, cptr, slot)
@@ -200,13 +119,16 @@ end
 
 local function stack_set_count(stack, count)
 	stack = stack:to_table()
-	if stack==nil then return nil end
-	stack.count=count
+	if stack == nil then return nil end
+	stack.count = count
 	return ItemStack(stack)
 end
 
 function tl.refuel(turtle, cptr, slot, nmax)
-	local info = get_turtle_info(turtle)
+	-- TODO: update that
+	local info = turtles.get_turtle_info(turtle)
+	info.energy = info.energy + 100 * MOVE_COST
+	--[[local info = get_turtle_info(turtle)
 	local stack = turtle_invs:get_stack(turtle, slot)
 	local fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {stack}})
 	if fuel.time <= 0 then
@@ -235,5 +157,5 @@ function tl.refuel(turtle, cptr, slot, nmax)
 		turtle_invs:set_stack(turtle, slot, stack)
 	end
 	info.fuel = info.fuel+FUEL_EFFICIENCY*count*fuel.time
-	cptr.X = u16(FUEL_EFFICIENCY*count*fuel.time)
+	cptr.X = u16(FUEL_EFFICIENCY*count*fuel.time)]]
 end

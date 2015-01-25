@@ -10,8 +10,8 @@ local function file_exists(name)
 	return false
 end
 
-function loadpkg(na)
-	local modpath = minetest.get_modpath("forth_computer")
+local function loadpkg(na)
+	local modpath = minetest.get_modpath("turtle")
 	local ol = package.cpath
 	local sp
 	if file_exists(modpath.."/INIT.LUA") then
@@ -21,7 +21,7 @@ function loadpkg(na)
 	else
 		sp = {modpath.."/?.so.32", modpath.."/?.so.64"}
 	end
-	for i=1,#sp do
+	for i=1, #sp do
 		package.cpath = sp[i]
 		e, lib = pcall(require, na)
 		package.cpath = ol
@@ -157,13 +157,13 @@ dofile(modpath.."/api.lua")
 
 function run_computer(turtle, cptr)
 	if cptr.stopped then return end
-	cptr.cycles = math.max(MAX_CYCLES,cptr.cycles+CYCLES_PER_STEP)
-	while 1 do
+	cptr.cycles = math.max(MAX_CYCLES, cptr.cycles + CYCLES_PER_STEP)
+	while true do
 		instr = cptr[cptr.PC]
 		local f = ITABLE[instr]
 		if f == nil then return end
-		cptr.PC = bit32.band(cptr.PC+1, 0xffff)
-		setfenv(f, {cptr = cptr, turtle=turtle, receive=receive, delete_message=delete_message, set_channel=set_channel, send_message=send_message, u16=u16, u32=u32, s16=s16, s32=s32, read=read, write=write, readC=readC, writeC=writeC, push=push, pop=pop, rpush=rpush, rpop=rpop, bit32=bit32, math=math, tl=tl})
+		cptr.PC = u16(cptr.PC + 1)
+		setfenv(f, {cptr = cptr, turtle = turtle, receive = receive, delete_message = delete_message, set_channel = set_channel, send_message = send_message, u16 = u16, u32 = u32, s16 = s16, s32 = s32, read = read, write = write, readC = readC, writeC = writeC, push = push, pop = pop, rpush = rpush, rpop = rpop, bit32 = bit32, math = math, tl = tl})
 		f()
 		cptr.cycles = cptr.cycles - 1
 		if cptr.paused or cptr.cycles <= 0 then
@@ -315,7 +315,7 @@ for i, v in pairs(ITABLE_RAW) do
 end
 
 function on_computer_digiline_receive(turtle, channel, msg)
-	local info = get_turtle_info(turtle)
+	local info = turtles.get_turtle_info(turtle)
 	local cptr = info.cptr
 	cptr.digiline_events[channel] = msg
 end

@@ -1,6 +1,6 @@
 function create_cptr_memory()
-	tbl = {}
-	for i=0, 65535 do tbl[i] = 0 end
+	local tbl = {}
+	for i = 0, 65535 do tbl[i] = 0 end
 	tbl[0xff00] = 0x4d
 	tbl[0xff01] = 0x2a
 	tbl[0xff02] = 0xff
