@@ -217,6 +217,7 @@ minetest.register_node("turtle:turtle", {
 		info.spos = vector.new(pos)
 		info.dir = 0
 		info.energy = 0
+		info.wield_index = 1
 		info.screen = screen.new()
 		info.cptr = create_cptr()
 		info.playernames = {}
@@ -224,6 +225,13 @@ minetest.register_node("turtle:turtle", {
 		local le = minetest.add_entity(pos, "turtle:turtle"):get_luaentity()
 		info.turtle = le
 		le.turtle_id = id
+	end,
+	on_rightclick = function(pos, node, clicker)
+		local turtle_id = minetest.get_meta(pos):get_int("turtle_id")
+		local info = turtles.get_turtle_info(turtle_id)
+		local name = clicker:get_player_name()
+		info.playernames[name] = true
+		minetest.show_formspec(name, "turtle:" .. tostring(turtle_id), info.formspec)
 	end,
 })
 
@@ -233,6 +241,7 @@ minetest.register_node("turtle:turtle2", {
 	drawtype = "airlike",
 	walkable = false,
 	pointable = false,
+	sunlight_propagates = true,
 })
 
 local function done_move(pos, spos, npos)

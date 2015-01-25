@@ -2,6 +2,78 @@ local MOVE_COST = 100
 local FUEL_EFFICIENCY = 300
 tl = {}
 
+local function delay(x)
+	return function() return x end
+end
+
+local function create_turtle_player(turtle_id, dir)
+	local info = turtles.get_turtle_info(turtle_id)
+	local inv = turtles.get_turtle_inventory(turtle_id)
+	local under_pos = vector.add(info.spos, dir)
+	local above_pos = vector.add(under_pos, dir)
+	local pitch
+	local yaw
+	if dir.z > 0 then
+		yaw = 0
+		pitch = 0
+	elseif dir.z < 0 then
+		yaw = math.pi
+		pitch = 0
+	elseif dir.x > 0 then
+		yaw = 3*math.pi/2
+		pitch = 0
+	elseif dir.x < 0 then
+		yaw = math.pi/2
+		pitch = 0
+	elseif dir.y > 0 then
+		yaw = 0
+		pitch = -math.pi/2
+	else
+		yaw = 0
+		pitch = math.pi/2
+	end
+	local player = {
+		get_inventory_formspec = delay(""), -- TODO
+		get_look_dir = delay(vector.new(dir)),
+		get_look_pitch = delay(pitch),
+		get_look_yaw = delay(yaw),
+		get_player_control = delay({jump = false, right = false, left = false, LMB = false, RMB = false, sneak = false, aux1 = false, down = false, up = false}),
+		get_player_control_bits = delay(0),
+		get_player_name = delay("turtle:" .. tostring(turtle_id)),
+		is_player = delay(true),
+		is_turtle = true,
+		set_inventory_formspec = delay(),
+		getpos = function() vector.subtract(info.spos, {x = 0, y = 1.5, z = 0}) end,
+		get_hp = delay(20),
+		get_inventory = function() return turtles.get_turtle_inventory(turtle_id) end,
+		get_wielded_item = function() return turtles.get_turtle_inventory(turtle_id):get_stack("main", info.wield_index or 1) end,
+		get_wield_index = function() return info.wield_index or 1 end,
+		get_wield_list = delay("main"),
+		moveto = delay(), -- TODO
+		punch = delay(),
+		remove = delay(),
+		right_click = delay(), -- TODO
+		setpos = delay(), -- TODO
+		set_hp = delay(),
+		set_properties = delay(),
+		set_wielded_item = function(self, item)
+			turtles.get_turtle_inventory(turtle_id):set_stack("main", info.wield_index or 1, item)
+		end,
+		set_animation = delay(),
+		set_attach = delay(), -- TODO???
+		set_detach = delay(),
+		set_bone_position = delay(),
+	}
+	local pointed_thing = {type = "node", under = under_pos, above = above_pos}
+	return player, pointed_thing
+end
+
+function tl.select(turtle, cptr, slot)
+	if 1 <= slot and slot < turtles.get_turtle_inventory(turtle):get_size("main") then
+		turtles.get_turtle_info(turtle).wield_index = slot
+	end
+end
+
 local function tl_move(turtle, cptr, dir)
 	local info = turtles.get_turtle_info(turtle)
 	if info.energy < MOVE_COST then
@@ -84,7 +156,16 @@ function tl.detectdown(turtle, cptr)
 end
 
 local function turtle_dig(turtle, cptr, dir)
-	-- TODO
+	local player, pointed_thing = create_turtle_player(turtle, dir)
+	local wieldstack = player:get_wielded_item()
+	local on_use = (minetest.registered_items[wieldstack:get_name()] or {}).on_use
+	if on_use then
+		player:set_wielded_item(on_use(wieldstack, player, pointed_thing) or wieldstack)
+	else
+		local under_node = minetest.get_node(pointed_thing.under)
+		local on_dig = (minetest.registered_nodes[under_node.name] or {on_dig = minetest.node_dig}).on_dig
+		on_dig(pointed_thing.under, under_node, player)
+	end
 end
 
 function tl.dig(turtle, cptr)
@@ -100,21 +181,21 @@ function tl.digdown(turtle, cptr)
 	turtle_dig(turtle, cptr, {x = 0, y = -1, z = 0})
 end
 
-local function turtle_place(turtle, cptr, dir, slot)
+local function turtle_place(turtle, cptr, dir)
 	-- TODO
 end
 
-function tl.place(turtle, cptr, slot)
+function tl.place(turtle, cptr)
 	local info = turtles.get_turtle_info(turtle)
-	turtle_place(turtle, cptr, minetest.facedir_to_dir(info.dir), slot)
+	turtle_place(turtle, cptr, minetest.facedir_to_dir(info.dir))
 end
 
-function tl.placeup(turtle, cptr, slot)
-	turtle_place(turtle, cptr, {x = 0, y = 1, z = 0}, slot)
+function tl.placeup(turtle, cptr)
+	turtle_place(turtle, cptr, {x = 0, y = 1, z = 0})
 end
 
-function tl.placedown(turtle, cptr, slot)
-	turtle_place(turtle, cptr, {x = 0, y = -1, z = 0}, slot)
+function tl.placedown(turtle, cptr)
+	turtle_place(turtle, cptr, {x = 0, y = -1, z = 0})
 end
 
 local function stack_set_count(stack, count)

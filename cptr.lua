@@ -301,11 +301,12 @@ ITABLE_RAW = {
 	[0x70] = "tl.dig(turtle, cptr)",
 	[0x71] = "tl.digup(turtle, cptr)",
 	[0x72] = "tl.digdown(turtle, cptr)",
-	[0x74] = "tl.place(turtle, cptr, cptr.X)",
-	[0x75] = "tl.placeup(turtle, cptr, cptr.X)",
-	[0x76] = "tl.placedown(turtle, cptr, cptr.X)",
+	[0x74] = "tl.place(turtle, cptr)",
+	[0x75] = "tl.placeup(turtle, cptr)",
+	[0x76] = "tl.placedown(turtle, cptr)",
 	
 	[0x80] = "tl.refuel(turtle, cptr, cptr.X, cptr.Y)",
+	[0x81] = "tl.select(turtle, cptr, cptr.X)"
 }
 
 ITABLE = {}
