@@ -415,8 +415,23 @@ def getc(i):
 #f.close()
 f = open('forth_floppy.lua','w')
 f.write("function create_forth_floppy()\n\treturn \"")
-for i in range(2**14):
-    f.write("\\%03d"%memory[i])
+#for i in range(2**14):
+i = 0
+N = 2 ** 14
+while i < N:
+    j = i
+    while j < N and memory[j] == 0:
+        j += 1
+    if j - i >= 9: # Minimum number to save characters: costs 34 characters instead of 36
+        f.write('"..string.rep(string.char(0),%d).."' % (j - i))
+        i = j
+    else:
+        c = memory[i]
+        if 32 <= c and c != ord('"') and c != ord("\\") and c <= 126:
+            f.write(chr(c))
+        else:
+            f.write("\\%03d"%memory[i])
+        i += 1
 f.write("\"\nend")
 f.close()
 
