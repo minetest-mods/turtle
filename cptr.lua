@@ -86,7 +86,7 @@ end
 
 local function write(cptr, addr, value)
 	cptr[addr] = bit32.band(value, 0xff)
-	cptr[addr+1] = bit32.band(math.floor(value/256), 0xff)
+	cptr[u16(addr + 1)] = bit32.band(math.floor(value/256), 0xff)
 end
 
 local function push(cptr, value)
@@ -308,6 +308,10 @@ ITABLE_RAW = {
 	[0x80] = "tl.refuel(turtle, cptr, cptr.X, cptr.Y)",
 	[0x81] = "tl.select(turtle, cptr, cptr.X)",
 	[0x82] = "tl.get_energy(turtle, cptr)",
+	
+	[0x88] = "tl.open_inv(turtle, cptr)",
+	[0x89] = "tl.get_formspec(turtle, cptr, cptr.X)",
+	[0x8a] = "tl.get_stack(turtle, cptr, cptr.X, cptr.Y, cptr.Z)",
 }
 
 ITABLE = {}

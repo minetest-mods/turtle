@@ -39,12 +39,12 @@ end
 function turtles.update_formspec(turtle_id)
 	local info = turtles.get_turtle_info(turtle_id)
 	local pos = info.spos
-	local formspec = "size[9,10]"..
+	local formspec = "size[13,9]"..
 		screen.create_text_formspec(info.screen, 0, 0)..
-		"list[nodemeta:"..pos.x..","..pos.y..","..pos.z..";main;4.8,0;4,4;]"..
-		"image_button[1,4.6;2.5,1;turtle_execute.png;reboot;]"..
-		"list[nodemeta:"..pos.x..","..pos.y..","..pos.z..";floppy;0,4.6;1,1;]"..
-		"list[current_player;main;0.5,6;8,4;]"
+		"list[nodemeta:"..pos.x..","..pos.y..","..pos.z..";main;4.8,0;8,4;]"..
+		"image_button[1,7.6;2.5,1;turtle_execute.png;reboot;]"..
+		"list[nodemeta:"..pos.x..","..pos.y..","..pos.z..";floppy;0,7.6;1,1;]"..
+		"list[current_player;main;4.8,4.6;8,4;]"
 	if info.formspec ~= formspec then
 		info.formspec = formspec
 		info.formspec_changed = true
@@ -184,17 +184,18 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		end
 		turtle_receptor_send(turtle_id, "screen", fields.f)
 		turtles.update_formspec(turtle_id)
-		return
+		return true
 	end
 	if fields.reboot then
 		local info = turtles.get_turtle_info(turtle_id)
 		info.cptr = create_cptr()
-		return
+		return true
 	end
 	if fields.quit then
 		local info = turtles.get_turtle_info(turtle_id)
 		info.playernames[player:get_player_name()] = nil
 	end
+	return true
 end)
 
 minetest.register_node("turtle:turtle", {
@@ -255,7 +256,7 @@ end
 
 minetest.register_entity("turtle:turtle", {
 	physical = true,
-	collisionbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5},
+	collisionbox = {-0.4999, -0.4999, -0.4999, 0.4999, 0.4999, 0.4999}, -- Not 0.5 to avoid the turtle being stuck due to rounding errors
 	collides_with_objects = false,
 	visual = "wielditem", -- TODO: change that to a mesh, and add animations
 	visual_size = {x = 2/3, y = 2/3},

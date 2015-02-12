@@ -36,7 +36,7 @@ local function escape(text)
 end
 
 function screen.new()
-	return "\n\n\n\n\n\n\n\n\n\n"
+	return "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
 end
 
 function screen.add_text(text, toadd)

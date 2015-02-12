@@ -12,7 +12,7 @@ local function pointable(stack, node)
 	return nodedef and def and (nodedef.pointable or (nodedef.liquidtype ~= "none" and def.liquid_pointable))
 end
 
-local function create_turtle_player(turtle_id, dir)
+local function create_turtle_player(turtle_id, dir, only_player)
 	local info = turtles.get_turtle_info(turtle_id)
 	local inv = turtles.get_turtle_inventory(turtle_id)
 	local pitch
@@ -68,6 +68,7 @@ local function create_turtle_player(turtle_id, dir)
 		set_detach = delay(),
 		set_bone_position = delay(),
 	}
+	if only_player then return player end
 	local above, under = nil, nil
 	local wieldstack = player:get_wielded_item()
 	local pos = vector.add(info.spos, dir)
@@ -101,6 +102,7 @@ function tl.select(turtle, cptr, slot)
 end
 
 local function tl_move(turtle, cptr, dir)
+	tl.close_form(turtle)
 	local info = turtles.get_turtle_info(turtle)
 	if info.energy < MOVE_COST then
 		cptr.X = 0
@@ -139,6 +141,7 @@ function tl.down(turtle, cptr)
 end
 
 function tl.turnleft(turtle, cptr)
+	tl.close_form(turtle)
 	local info = turtles.get_turtle_info(turtle)
 	info.ndir = (info.dir + 3) % 4
 	info.rotate = math.pi / 2
@@ -147,6 +150,7 @@ function tl.turnleft(turtle, cptr)
 end
 
 function tl.turnright(turtle, cptr)
+	tl.close_form(turtle)
 	local info = turtles.get_turtle_info(turtle)
 	info.ndir = (info.dir + 1) % 4
 	info.rotate = - math.pi / 2
@@ -182,6 +186,7 @@ function tl.detectdown(turtle, cptr)
 end
 
 local function turtle_dig(turtle, cptr, dir)
+	tl.close_form(turtle)
 	local player, pointed_thing = create_turtle_player(turtle, dir)
 	if pointed_thing == nil then return end
 	local info = turtles.get_turtle_info(turtle)
@@ -218,8 +223,17 @@ function tl.digdown(turtle, cptr)
 end
 
 local function turtle_place(turtle, cptr, dir)
+	tl.close_form(turtle)
 	local player, pointed_thing = create_turtle_player(turtle, dir)
 	if pointed_thing == nil then return end
+	local formspec = minetest.get_meta(pointed_thing.under):get_string("formspec")
+	if formspec ~= nil then
+		local info = turtles.get_turtle_info(turtle)
+		info.open_formspec = tl.read_formspec(formspec)
+		info.formspec_type = {type = "node", pos = pointed_thing.under}
+		info.formspec_fields = {}
+		return
+	end
 	local wieldstack = player:get_wielded_item()
 	local on_place = (minetest.registered_items[wieldstack:get_name()] or {on_place = minetest.item_place}).on_place
 	player:set_wielded_item(on_place(wieldstack, player, pointed_thing) or wieldstack)
@@ -281,4 +295,254 @@ function tl.get_energy(turtle, cptr)
 	local info = turtles.get_turtle_info(turtle)
 	cptr.Y = u16(info.energy)
 	cptr.X = u16(math.floor(info.energy / 0x10000))
+end
+
+--------------
+-- Formspec --
+--------------
+minetest.register_on_player_receive_fields(function(player, formname, fields)
+	if player:get_player_name():sub(1, 7) == "turtle:" and formname == "turtle:inventory" then
+		return true
+	end
+end)
+
+local function send_fields(turtle)
+	local info = turtles.get_turtle_info(turtle)
+	local fields = info.formspec_fields
+	info.formspec_fields = {}
+	if info.formspec_type.type == "show" then
+		local dir = minetest.facedir_to_dir(info.dir)
+		local player = create_turtle_player(turtle, dir, true)
+		for _, func in ipairs(minetest.registered_on_receive_fields) do
+			if func(player, info.formspec_type.formname, fields) then
+				return
+			end
+		end
+	else
+		local pos = info.formspec_type.pos
+		local nodedef = minetest.registered_nodes[minetest.get_node(pos).name]
+		if nodedef and nodedef.on_receive_fields then
+			local dir = vector.normalize(vector.sub(pos, info.spos))
+			local player = create_turtle_player(turtle, dir, true)
+			nodedef.on_receive_fields(vector.new(pos), "", fields, player)
+		end
+	end
+end
+
+function tl.close_form(turtle)
+	local info = turtles.get_turtle_info(turtle)
+	if info.formspec_fields then
+		info.formspec_fields["quit"] = "true"
+		send_fields(turtle)
+		info.open_formspec = nil
+		info.formspec_type = nil
+		info.formspec_fields = nil
+	end
+end
+
+local function split_str(str, delim)
+	local parsed = {}
+	local i = 1
+	local s = ""
+	while i <= string.len(str) do
+		if str:sub(i, i) == "\\" then
+			s = s .. str:sub(i, i + 1)
+			i = i + 2
+		elseif str:sub(i, i) == delim then
+			parsed[#parsed + 1] = s
+			s = ""
+			i = i + 1
+		else
+			s = s .. str:sub(i, i)
+			i = i + 1
+		end
+	end
+	parsed[#parsed + 1] = s
+	return parsed
+end
+
+local function parse_list(lstdef)
+	local parsed = split_str(lstdef, ";")
+	local psize = split_str(parsed[4], ",")
+	if parsed[1] == "current_name" then parsed[1] = "context" end
+	return {location = parsed[1], listname = parsed[2],
+		size = tonumber(psize[1]) * tonumber(psize[2]),
+		start_index = ((parsed[5] and tonumber(parsed[5])) or 0) + 1}
+end
+
+local function merge_adjacent_lists(lsts)
+	local function merge_at(t, ind)
+		if t.starts[ind] and t.ends[ind] then
+			t.starts[t.ends[ind]] = t.starts[ind]
+			t.ends[t.starts[ind]] = t.ends[ind]
+			t.starts[ind] = nil
+			t.ends[ind] = nil
+		end
+	end
+	local locs = {}
+	for _, lst in ipairs(lsts) do
+		local loc = lst.location .. ";" .. lst.listname
+		if locs[loc] == nil then
+			locs[loc] = {location = lst.location, listname = lst.listname, starts = {}, ends = {}}
+		end
+		local starti, endi = lst.start_index, lst.start_index + lst.size
+		locs[loc].ends[endi] = starti
+		locs[loc].starts[starti] = endi
+		merge_at(locs[loc], endi)
+		merge_at(locs[loc], starti)
+	end
+	local new = {}
+	for _, lst in pairs(locs) do
+		for starti, endi in pairs(lst.starts) do
+			new[#new + 1] = {location = lst.location, listname = lst.listname, size = endi - starti, start_index = starti}
+		end
+	end
+	return new
+end
+
+function tl.read_formspec(formspec)
+	local parsed = split_str(formspec, "]")
+	local lsts = {}
+	for _, item in ipairs(parsed) do
+		if item:sub(1, 5) == "list[" then
+			lsts[#lsts + 1] = parse_list(item:sub(6, -1))
+		end
+	end
+	return {lists = merge_adjacent_lists(lsts)}
+end
+
+local old_show_formspec = minetest.show_formspec
+function minetest.show_formspec(playername, formname, formspec)
+	if playername:sub(1, 7) == "turtle:" then
+		local id = tonumber(playername:sub(8, -1))
+		local info = turtles.get_turtle_info(id)
+		info.open_formspec = tl.read_formspec(formspec)
+		info.formspec_type = {type = "show", formname = formname}
+		info.formspec_fields = {}
+		return
+	end
+	old_show_formspec(playername, formname, formspec)
+end
+
+function tl.open_inv(turtle, cptr)
+	tl.close_form(turtle)
+	local info = turtles.get_turtle_info(turtle)
+	info.open_formspec = tl.read_formspec(
+		"list[current_player;main;0,4.25;8,4;]"..
+		"list[current_player;craft;1.75,0.5;3,3;]"..
+		"list[current_player;craftpreview;5.75,1.5;1,1;]")
+	info.formspec_type = {type = "show", formname = "turtle:inventory"}
+end
+
+-- Formspec memory layout
+-- +-----+-----+-----+-----+----
+-- |     |  Pointer  |     |
+-- | Tag |  to next  | ID  | Data
+-- |     |  element  |     |
+-- +-----+-----+-----+-----+----
+-- 
+-- For last element (TAG_END), only tag is present
+
+local function push(cptr, addr, value)
+	cptr[addr] = bit32.band(value, 0xff)
+	cptr[u16(addr + 1)] = bit32.band(math.floor(value/256), 0xff)
+	return u16(addr + 2)
+end
+
+local function pushC(cptr, addr, value)
+	cptr[addr] = bit32.band(value, 0xff)
+	return u16(addr + 1)
+end
+
+local function push_string(cptr, addr, str)
+	for i = 1, string.len(str) do
+		cptr[u16(addr - 1 + i)] = string.byte(str, i)
+	end
+	return u16(addr + string.len(str))
+end
+
+local function push_string_counted(cptr, addr, str)
+	-- String length (2 bytes)
+	-- String contents
+	return push_string(cptr, push(cptr, addr, string.len(str)), str)
+end
+
+local function push_stack(cptr, addr, stack)
+	-- Count (2 bytes)
+	-- Wear (2 bytes)
+	-- Item name
+	return push_string_counted(cptr,
+		push(cptr,
+		push(cptr, addr,
+			stack:get_count()),
+			stack:get_wear()),
+			stack:get_name())
+end
+
+local TAG_END = 0
+local TAG_LIST = 1
+function tl.get_formspec(turtle, cptr, addr)
+	local info = turtles.get_turtle_info(turtle)
+	if not info.open_formspec then
+		pushC(cptr, addr, TAG_END)
+		return
+	end
+	local i = 0
+	for _, lst in ipairs(info.open_formspec.lists) do
+		addr = pushC(cptr, addr, TAG_LIST)
+		local old_addr = addr
+		addr = u16(addr + 2)
+		addr = pushC(cptr, addr, i)
+		i = i + 1
+		addr = push_string_counted(cptr, addr, lst.location)
+		addr = push_string_counted(cptr, addr, lst.listname)
+		addr = push(cptr, addr, lst.size)
+		addr = push(cptr, addr, lst.start_index)
+		push(cptr, old_addr, addr) -- Pointer to next element
+	end
+	pushC(cptr, addr, TAG_END)
+end
+
+local function get_element_by_id(formspec, elem_id)
+	return formspec.lists[elem_id + 1]
+end
+
+local function get_inventory_from_location(turtle, location)
+	if location == "current_player" then
+		return turtles.get_turtle_inventory(turtle)
+	elseif location == "context" then
+		local info = turtles.get_turtle_info(turtle)
+		local formspec = info.formspec_type
+		if formspec and formspec.type == "node" then
+			return minetest.get_meta(formspec.pos):get_inventory()
+		end
+		print("WARNING: tried to access context without open node formspec")
+	elseif location:sub(1, 8) == "nodemeta" then
+		local p = split_str(location, ":")
+		local spos = split_str(p[2], ",")
+		local pos = {x = tonumber(spos[1]), y = tonumber(spos[2]), z = tonumber(spos[3])}
+		if pos.x and pos.y and pos.z then
+			return minetest.get_meta(pos):get_inventory()
+		end
+		print("WARNING: incorrect nodemeta element: " .. location)
+	else
+		print("WARNING: unimplemented location type: " .. location)
+	end
+end
+
+function tl.get_stack(turtle, cptr, elem_id, slot, addr)
+	local info = turtles.get_turtle_info(turtle)
+	local stack = ItemStack("")
+	if info.open_formspec then
+		local formspec = info.open_formspec
+		local elem = get_element_by_id(formspec, elem_id)
+		if elem and elem.location and
+				elem.start_index <= slot and slot <= elem.start_index + elem.size then
+			local inv = get_inventory_from_location(turtle, elem.location)
+			if inv then
+				stack = inv:get_stack(elem.listname, slot)
+			end
+		end
+	end
+	push_stack(cptr, addr, stack)
 end
