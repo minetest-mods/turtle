@@ -1,5 +1,6 @@
-License of textures
-All textures are by kaeza, licensed under the CC-BY-SA license
+License of textures and models
+Textures and nodebox of screen are by kaeza, modified by Nore, under the WTFPL license
+All other textures are by kaeza, licensed under the CC-BY-SA license
 
 ------------------------------
 License of code

@@ -5,4 +5,4 @@ or placing nodes.
 --------------------
 Depends on:
 pipeworks
-digilines (optional)
+digilines

@@ -5,7 +5,6 @@ local DEBUG = true
 -------------------------
 
 local turtle_infos = db.read_file("turtle_infos")
-local floppies = db.read_file("floppies")
 
 minetest.register_on_shutdown(function()
 	for id, info in pairs(turtle_infos) do
@@ -13,8 +12,11 @@ minetest.register_on_shutdown(function()
 		info.playernames = {}
 	end
 	db.write_file("turtle_infos", turtle_infos)
-	db.write_file("floppies", floppies)
 end)
+
+------------------
+-- Some helpers --
+------------------
 
 function turtles.get_turtle_info(turtle_id)
 	if turtle_infos[turtle_id] == nil then
@@ -32,17 +34,13 @@ function turtles.create_turtle_id()
 	return #turtle_infos + 1
 end
 
-function turtles.create_floppy_id()
-	return #floppies + 1
-end
-
 function turtles.update_formspec(turtle_id)
 	local info = turtles.get_turtle_info(turtle_id)
 	local pos = info.spos
 	local formspec = "size[13,9]"..
 		screen.create_text_formspec(info.screen, 0, 0)..
 		"list[nodemeta:"..pos.x..","..pos.y..","..pos.z..";main;4.8,0;8,4;]"..
-		"image_button[1,7.6;2.5,1;turtle_execute.png;reboot;]"..
+		"image_button[1,7.6;2.5,1;turtle_reboot.png;reboot;]"..
 		"list[nodemeta:"..pos.x..","..pos.y..","..pos.z..";floppy;0,7.6;1,1;]"..
 		"list[current_player;main;4.8,4.6;8,4;]"
 	if info.formspec ~= formspec then
@@ -59,120 +57,24 @@ local function on_screen_digiline_receive(turtle, channel, msg)
 	end
 end
 
-local function handle_floppy_meta(stack)
-	if stack.metadata == "" or stack.metadata == nil then
-		local id = turtles.create_floppy_id()
-		stack.metadata = tostring(id)
-		floppies[id] = string.rep(string.char(0), 16384)
-		return floppies[id], true
-	elseif string.len(stack.metadata) >= 1000 then
-		local id = turtles.create_floppy_id()
-		floppies[id] = stack.metadata
-		stack.metadata = tostring(id)
-		return floppies[id], true
-	else
-		if floppies[tonumber(stack.metadata)] == nil then
-			floppies[tonumber(stack.metadata)] = string.rep(string.char(0), 16384)
-		end
-		return floppies[tonumber(stack.metadata)], false
-	end
+local function on_disk_digiline_receive(turtle, channel, msg)
+	local inv = turtles.get_turtle_inventory(turtle)
+	floppy.disk_digiline_receive(inv, channel, msg, "boot",
+		function(msg) turtle_receptor_send(turtle, "boot", msg) end)
 end
-
-local function set_floppy_contents(name, contents)
-	floppies[tonumber(name)] = contents
-end
-
-function on_disk_digiline_receive(turtle_id, channel, msg)
-	if channel == "boot" then
-		if string.len(msg) ~= 1 and string.len(msg) ~= 65 then return end -- Invalid message, it comes probably from the disk itself
-		local page = string.byte(msg, 1)
-		if page == nil then return end
-		local inv = turtles.get_turtle_inventory(turtle_id)
-		local stack = inv:get_stack("floppy", 1):to_table()
-		if stack == nil then return end
-		if stack.name ~= "turtle:floppy" then return end
-		local floppy_contents, update = handle_floppy_meta(stack)
-		if update then
-			inv:set_stack("floppy", 1, ItemStack(stack))
-		end
-		msg = string.sub(msg, 2, -1)
-		if string.len(msg) == 0 then -- read
-			turtle_receptor_send(turtle_id, channel,
-				string.sub(floppy_contents, page * 64 + 1, page * 64 + 64))
-		else -- write
-			floppy_contents = string.sub(floppy_contents, 1, page * 64) ..
-			                  msg ..
-			                  string.sub(floppy_contents, page * 64 + 65, -1)
-			set_floppy_contents(stack.metadata, floppy_contents)
-		end
-	end
-end
-
-minetest.register_craftitem("turtle:floppy", {
-	description = "Floppy disk",
-	inventory_image = "floppy.png",
-	stack_max = 1,
-})
-
-local progs = {
-	["Empty"] = string.rep(string.char(0), 16536),
-	["Forth Boot Disk"] = create_forth_floppy(),
-}
-
-minetest.register_node("turtle:floppy_programmator",{
-	description = "Floppy disk programmator",
-	tiles = {"floppy_programmator_top.png", "floppy_programmator_bottom.png", "floppy_programmator_right.png",
-	         "floppy_programmator_left.png", "floppy_programmator_back.png", "floppy_programmator_front.png"},
-	groups = {cracky = 3},
-	sounds = default.node_sound_stone_defaults(),
-	on_construct = function(pos)
-		local meta = minetest.get_meta(pos)
-		local inv = meta:get_inventory()
-		inv:set_size("floppy", 1)
-		meta:set_int("selected", 1)
-		local s = "size[8,5.5;]" ..
-			  "dropdown[0,0;5;pselector;"
-		for key, _ in pairs(progs) do
-			s = s .. key .. ","
-		end
-		s = string.sub(s, 1, -2)
-		s = s .. ";1]" ..
-		         "button[5,0;2,1;prog;Program]" ..
-		         "list[current_name;floppy;7,0;1,1;]" ..
-		         "list[current_player;main;0,1.5;8,4;]"
-		meta:set_string("formspec", s)
-	end,
-	can_dig = function(pos, player)
-		local meta = minetest.get_meta(pos)
-		local inv = meta:get_inventory()
-		return inv:is_empty("floppy")
-	end,
-	allow_metadata_inventory_put = function(pos, listname, index, stack, player)
-		if stack:get_name() == "turtle:floppy" then return 1 end
-		return 0
-	end,
-	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
-		if fields.prog then
-			local inv = meta:get_inventory()
-			local prog = progs[fields.pselector]
-			local stack = inv:get_stack("floppy", 1):to_table()
-			if stack == nil then return end
-			if stack.name ~= "turtle:floppy" then return end
-			local contents, update = handle_floppy_meta(stack)
-			set_floppy_contents(stack.metadata, prog)
-			if update then
-				inv:set_stack("floppy", 1, ItemStack(stack))
-			end
-		end
-	end,
-})
 
 function turtle_receptor_send(turtle, channel, msg)
 	on_screen_digiline_receive(turtle, channel, msg)
 	on_computer_digiline_receive(turtle, channel, msg)
 	on_disk_digiline_receive(turtle, channel, msg)
-	--on_turtle_command_receive(turtle, channel, msg)
+	local info = turtles.get_turtle_info(turtle)
+	digiline:receptor_send(info.spos, digiline.rules.default, channel, msg)
+end
+
+local function turtle_receive(turtle, channel, msg)
+	on_screen_digiline_receive(turtle, channel, msg)
+	on_computer_digiline_receive(turtle, channel, msg)
+	on_disk_digiline_receive(turtle, channel, msg)
 end
 
 minetest.register_on_player_receive_fields(function(player, formname, fields)
@@ -218,6 +120,15 @@ minetest.register_node("turtle:turtle", {
 	sunlight_propagates = true,
 	walkable = false,
 	pointable = false,
+	digiline = 
+	{
+		receptor = {},
+		effector = {action = function(pos, node, channel, msg)
+			local meta = minetest.get_meta(pos)
+			local turtle = meta:get_int("turtle_id")
+			turtle_receive(turtle, channel, msg)
+		end},
+	},
 	after_place_node = function(pos)
 		local meta = minetest.get_meta(pos)
 		local inv = meta:get_inventory()

@@ -1,5 +1,5 @@
 local MOVE_COST = 100
-local FUEL_EFFICIENCY = 10000
+local FUEL_EFFICIENCY = 1000
 tl = {}
 
 local function delay(x)
