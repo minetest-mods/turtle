@@ -12,7 +12,7 @@ local function pointable(stack, node)
 	return nodedef and def and (nodedef.pointable or (nodedef.liquidtype ~= "none" and def.liquid_pointable))
 end
 
-local function create_turtle_player(turtle_id, dir, only_player)
+function turtles.create_turtle_player(turtle_id, dir, only_player)
 	local info = turtles.get_turtle_info(turtle_id)
 	local inv = turtles.get_turtle_inventory(turtle_id)
 	local pitch
@@ -187,7 +187,7 @@ end
 
 local function turtle_dig(turtle, cptr, dir)
 	tl.close_form(turtle)
-	local player, pointed_thing = create_turtle_player(turtle, dir)
+	local player, pointed_thing = turtles.create_turtle_player(turtle, dir)
 	if pointed_thing == nil then return end
 	local info = turtles.get_turtle_info(turtle)
 	local wieldstack = player:get_wielded_item()
@@ -224,7 +224,7 @@ end
 
 local function turtle_place(turtle, cptr, dir)
 	tl.close_form(turtle)
-	local player, pointed_thing = create_turtle_player(turtle, dir)
+	local player, pointed_thing = turtles.create_turtle_player(turtle, dir)
 	if pointed_thing == nil then return end
 	local formspec = minetest.get_meta(pointed_thing.under):get_string("formspec")
 	if formspec ~= nil then
@@ -306,13 +306,23 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	end
 end)
 
+local function get_turtle_formspec_player(turtle)
+	local info = turtles.get_turtle_info(turtle)
+	local dir
+	if info.formspec_type and info.formspec_type.type == "node" then
+		dir = vector.normalize(vector.sub(info.formspec_type.pos, info.spos))
+	else
+		dir = minetest.facedir_to_dir(info.dir)
+	end
+	return turtles.create_turtle_player(turtle, dir, true)
+end
+
 local function send_fields(turtle)
 	local info = turtles.get_turtle_info(turtle)
 	local fields = info.formspec_fields
 	info.formspec_fields = {}
+	local player = get_turtle_formspec_player(turtle)
 	if info.formspec_type.type == "show" then
-		local dir = minetest.facedir_to_dir(info.dir)
-		local player = create_turtle_player(turtle, dir, true)
 		for _, func in ipairs(minetest.registered_on_receive_fields) do
 			if func(player, info.formspec_type.formname, fields) then
 				return
@@ -322,8 +332,6 @@ local function send_fields(turtle)
 		local pos = info.formspec_type.pos
 		local nodedef = minetest.registered_nodes[minetest.get_node(pos).name]
 		if nodedef and nodedef.on_receive_fields then
-			local dir = vector.normalize(vector.sub(pos, info.spos))
-			local player = create_turtle_player(turtle, dir, true)
 			nodedef.on_receive_fields(vector.new(pos), "", fields, player)
 		end
 	end
@@ -507,6 +515,10 @@ local function get_element_by_id(formspec, elem_id)
 	return formspec.lists[elem_id + 1]
 end
 
+---------------
+-- Inventory --
+---------------
+
 local function get_inventory_from_location(turtle, location)
 	if location == "current_player" then
 		return turtles.get_turtle_inventory(turtle)
@@ -537,7 +549,7 @@ function tl.get_stack(turtle, cptr, elem_id, slot, addr)
 		local formspec = info.open_formspec
 		local elem = get_element_by_id(formspec, elem_id)
 		if elem and elem.location and
-				elem.start_index <= slot and slot <= elem.start_index + elem.size then
+				elem.start_index <= slot and slot < elem.start_index + elem.size then
 			local inv = get_inventory_from_location(turtle, elem.location)
 			if inv then
 				stack = inv:get_stack(elem.listname, slot)
@@ -545,4 +557,199 @@ function tl.get_stack(turtle, cptr, elem_id, slot, addr)
 		end
 	end
 	push_stack(cptr, addr, stack)
+end
+
+local function same_location(location1, location2)
+	if location1.type ~= location2.type then
+		return false
+	end
+	if location1.type == "node" then
+		return vector.equals(location1.pos, location2.pos)
+	else
+		return location1.name == location2.name
+	end
+end
+
+local function get_callbacks(location)
+	if location.type == "node" then
+		local node = minetest.get_node(location.pos)
+		local nodedef = minetest.registered_nodes[node.name] or {}
+		return {allow_move = function(list1, index1, list2, index2, count, player)
+				return nodedef.allow_metadata_inventory_move and
+					nodedef.allow_metadata_inventory_move(location.pos, list1, index1, list2, index2, count, player) or
+					count
+			end,
+			allow_take = function(list, index, stack, player)
+				return nodedef.allow_metadata_inventory_take and
+					nodedef.allow_metadata_inventory_take(location.pos, list, index, stack, player) or
+					stack:get_count()
+			end,
+			allow_put = function(list, index, stack, player)
+				return nodedef.allow_metadata_inventory_put and
+					nodedef.allow_metadata_inventory_put(location.pos, list, index, stack, player) or
+					stack:get_count()
+			end,
+			on_move = function(list1, index1, list2, index2, count, player)
+				if nodedef.on_metadata_inventory_move then
+					nodedef.on_metadata_inventory_move(location.pos, list1, index1, list2, index2, count, player)
+				end
+			end,
+			on_take = function(list, index, stack, player)
+				if nodedef.on_metadata_inventory_take then
+					nodedef.on_metadata_inventory_take(location.pos, list, index, stack, player)
+				end
+			end,
+			on_put = function(list, index, stack, player)
+				if nodedef.on_metadata_inventory_put then
+					nodedef.on_metadata_inventory_put(location.pos, list, index, stack, player)
+				end
+			end,
+		}
+	elseif location.type == "detached" then
+		print("WARNING: not yet implemented")
+		return {allow_move = function(list1, index1, list2, index2, count, player)
+				return count
+			end,
+			allow_take = function(list, index, stack, player)
+				return stack:get_count()
+			end,
+			allow_put = function(list, index, stack, player)
+				return stack:get_count()
+			end,
+			on_move = function() end,
+			on_take = function() end,
+			on_put = function() end,
+		}
+	else
+		return {allow_move = function(list1, index1, list2, index2, count, player)
+				return count
+			end,
+			allow_take = function(list, index, stack, player)
+				return stack:get_count()
+			end,
+			allow_put = function(list, index, stack, player)
+				return stack:get_count()
+			end,
+			on_move = function() end,
+			on_take = function() end,
+			on_put = function() end,
+		}
+	end
+end
+
+local function room_for_item(stack, stack2)
+	return stack:is_empty() or stack2:is_empty() or
+		(stack:get_name() == stack2:get_name() and stack:get_free_space() >= stack2:get_count())
+end
+
+local function move(inv1, list1, index1, inv2, list2, index2, player, count)
+	local location1 = inv1:get_location()
+	local location2 = inv2:get_location()
+	local callbacks1 = get_callbacks(location1)
+	local callbacks2 = get_callbacks(location2)
+	local stack = inv1:get_stack(list1, index1)
+	local stack_to = inv2:get_stack(list2, index2)
+	if stack_to:get_name() ~= stack:get_name() and stack_to:get_count() > 0 then -- Disallow move to different type of item
+		return
+	end
+	if list2 == "craftpreview" then return end -- Disallow moving items into craftpreview
+	if list1 ~= "craftpreview" then
+		count = math.min(stack:get_count(), count)
+		stack:set_count(count)	
+		count = math.min(count, stack_to:get_free_space())
+	else
+		local c = 0
+		local crafted_stack = ItemStack("")
+		while c < count do
+			local st = minetest.craft_predict(
+				minetest.get_craft_result(
+					{method = "normal",
+					items = inv1:get_list("craft"),
+					width = inv1:get_width("craft")}).item,
+				player,
+				inv1:get_list("craft"),
+				inv1)
+			--if not stack_to:room_for_item(st) then
+			if not room_for_item(stack_to, st) then
+				break
+			end
+			local old_grid = inv1:get_list("craft")
+			local out, decr_input = minetest.get_craft_result(
+							{method = "normal",
+							items = inv1:get_list("craft"),
+							width = inv1:get_width("craft")})
+			local item = out.item
+			inv1:set_list("craft", decr_input.items)
+			local crafted = minetest.on_craft(item, player, old_grid, inv1)
+			crafted_stack:add_item(crafted)
+			stack_to:add_item(crafted)
+			c = c + 1
+		end
+		stack = crafted_stack
+		count = stack:get_count()
+	end
+	if count <= 0 then return end
+	local count1, count2
+	if same_location(location1, location2) then
+		count1 = callbacks1.allow_move(list1, index1, list2, index2, count, player)
+		count2 = count1
+	else
+		count1 = callbacks1.allow_take(list1, index1, stack, player)
+		count2 = callbacks2.allow_put(list2, index2, stack, player)
+	end
+	if count1 >= 0 then
+		count = math.min(count, count1)
+	end
+	if count2 >= 0 then
+		count = math.min(count, count2)
+	end
+	if count == 0 then return end
+	stack:set_count(count)
+	if count1 >= 0 then
+		local s = inv1:get_stack(list1, index1)
+		s:take_item(count)
+		inv1:set_stack(list1, index1, s)
+	end
+	if count2 >= 0 then
+		local s = inv2:get_stack(list2, index2)
+		s:add_item(stack)
+		inv2:set_stack(list2, index2, s)
+	end
+	if same_location(location1, location2) then
+		callbacks1.on_move(list1, index1, list2, index2, count, player)
+	else
+		callbacks1.on_take(list1, index1, stack, player)
+		callbacks2.on_put(list2, index2, stack, player)
+	end
+end
+
+local function readC(cptr, addr)
+	return cptr[addr]
+end
+local function read(cptr, addr)
+	return cptr[addr] + 256 * cptr[u16(addr + 1)]
+end
+
+function tl.move_item(turtle, cptr, addr)
+	local from_id = readC(cptr, addr)
+	local to_id = readC(cptr, u16(addr + 1))
+	local from_index = read(cptr, u16(addr + 2))
+	local to_index = read(cptr, u16(addr + 4))
+	local count = read(cptr, u16(addr + 6))
+	local info = turtles.get_turtle_info(turtle)
+	local player = get_turtle_formspec_player(turtle)
+	if info.open_formspec then
+		local formspec = info.open_formspec
+		local from_elem = get_element_by_id(formspec, from_id)
+		local to_elem = get_element_by_id(formspec, to_id)
+		if from_elem and from_elem.location and to_elem and to_elem.location and
+				from_elem.start_index <= from_index and from_index < from_elem.start_index + from_elem.size and
+				to_elem.start_index <= to_index and to_index < to_elem.start_index + to_elem.size then
+			local from_inv = get_inventory_from_location(turtle, from_elem.location)
+			local to_inv = get_inventory_from_location(turtle, to_elem.location)
+			if from_inv and to_inv then
+				move(from_inv, from_elem.listname, from_index, to_inv, to_elem.listname, to_index, player, count)
+			end
+		end
+	end
 end

@@ -108,6 +108,7 @@ ASSEMBLER
 : OPEN-INV 0x88 NXT ;
 : GET-FORMSPEC PLX 0x89 NXT ;
 : GET-STACK PLZ PLY PLX 0x8a NXT ;
+: (move_item) PLX 0x8b NXT ;
 
 ENVIRONMENT
 256 CONSTANT /COUNTED-STRING
@@ -307,6 +308,8 @@ FORTH
 : GET-INV-ID >R S" current_player" S" main" R> GET-LIST-ID ;
 : GET-CRAFT-ID >R S" current_player" S" craft" R> GET-LIST-ID ;
 : GET-CRAFT-OUTPUT-ID >R S" current_player" S" craftpreview" R> GET-LIST-ID ;
+\ from_id from_index to_id to_index count
+: MOVE-ITEM 0xfffe ! 0xfffc ! 0xfff9 C! 0xfffa ! 0xfff8 C! 0xfff8 (move_item) ;
 
 : GET-CURRENT CW @ ;
 : SET-CURRENT LATEST @ CW @ ! DUP CW ! @ LATEST ! ;

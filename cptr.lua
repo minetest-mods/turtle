@@ -312,6 +312,7 @@ ITABLE_RAW = {
 	[0x88] = "tl.open_inv(turtle, cptr)",
 	[0x89] = "tl.get_formspec(turtle, cptr, cptr.X)",
 	[0x8a] = "tl.get_stack(turtle, cptr, cptr.X, cptr.Y, cptr.Z)",
+	[0x8b] = "tl.move_item(turtle, cptr, cptr.X)",
 }
 
 ITABLE = {}

@@ -198,6 +198,19 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	return true
 end)
 
+local function update_craftpreview(turtle)
+	local inv = turtles.get_turtle_inventory(turtle)
+	local info = turtles.get_turtle_info(turtle)
+	local dir = minetest.facedir_to_dir(info.dir)
+	local player = turtles.create_turtle_player(turtle, dir, true)
+	inv:set_stack("craftpreview", 1,
+		minetest.craft_predict(
+			minetest.get_craft_result({method = "normal", items = inv:get_list("craft"), width = inv:get_width("craft")}).item,
+			player,
+			inv:get_list("craft"),
+			inv))
+end
+
 minetest.register_node("turtle:turtle", {
 	description = "Turtle",
 	drawtype = "airlike",
@@ -211,7 +224,9 @@ minetest.register_node("turtle:turtle", {
 		inv:set_size("floppy", 1)
 		inv:set_size("main", 8 * 4)
 		inv:set_size("craft", 3 * 3)
-		inv:set_size("craft_output", 1)
+		inv:set_width("craft", 3)
+		inv:set_size("craftpreview", 1)
+		inv:set_size("craftresult", 1)
 		local id = turtles.create_turtle_id()
 		meta:set_int("turtle_id", id)
 		local info = turtles.get_turtle_info(id)
@@ -226,6 +241,15 @@ minetest.register_node("turtle:turtle", {
 		local le = minetest.add_entity(pos, "turtle:turtle"):get_luaentity()
 		info.turtle = le
 		le.turtle_id = id
+	end,
+	on_metadata_inventory_move = function(pos)
+		update_craftpreview(minetest.get_meta(pos):get_int("turtle_id"))
+	end,
+	on_metadata_inventory_take = function(pos)
+		update_craftpreview(minetest.get_meta(pos):get_int("turtle_id"))
+	end,
+	on_metadata_inventory_put = function(pos)
+		update_craftpreview(minetest.get_meta(pos):get_int("turtle_id"))
 	end,
 	on_rightclick = function(pos, node, clicker)
 		local turtle_id = minetest.get_meta(pos):get_int("turtle_id")
@@ -327,12 +351,14 @@ minetest.register_entity("turtle:turtle", {
 		end
 	end,
 	on_rightclick = function(self, clicker)
+		if self.turtle_id == nil then return end
 		local info = turtles.get_turtle_info(self.turtle_id)
 		local name = clicker:get_player_name()
 		info.playernames[name] = true
 		minetest.show_formspec(name, "turtle:" .. tostring(self.turtle_id), info.formspec)
 	end,
 	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
+		if self.turtle_id == nil then return end
 		self.object:remove()
 		local info = turtles.get_turtle_info(self.turtle_id)
 		local pos = info.spos
@@ -352,6 +378,7 @@ minetest.register_entity("turtle:turtle", {
 		turtle_infos[self.turtle_id] = nil
 	end,
 	get_staticdata = function(self)
+		if self.turtle_id == nil then return "" end
 		return tostring(self.turtle_id)
 	end,
 })
