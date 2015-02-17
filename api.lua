@@ -263,6 +263,21 @@ function tl.refuel(turtle, cptr, slot, nmax)
 	local info = turtles.get_turtle_info(turtle)
 	local inv = turtles.get_turtle_inventory(turtle)
 	local stack = inv:get_stack("main", slot)
+	if technic and technic.power_tools[stack:get_name()] then
+		local meta = minetest.deserialize(stack:get_metadata()) or {}
+		if not meta.charge then
+			meta.charge = 0
+		end
+		info.energy = info.energy + meta.charge
+		meta.charge = 0
+		local max_charge = technic.power_tools[stack:get_name()]
+		technic.set_RE_wear(stack, 0, max_charge)
+		stack:set_metadata(minetest.serialize(meta))
+		inv:set_stack("main", slot, stack)
+		cptr.X = u16(-1)
+		return
+	end
+	
 	local fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {stack}})
 	if fuel.time <= 0 then
 		cptr.X = 0
@@ -310,7 +325,7 @@ local function get_turtle_formspec_player(turtle)
 	local info = turtles.get_turtle_info(turtle)
 	local dir
 	if info.formspec_type and info.formspec_type.type == "node" then
-		dir = vector.normalize(vector.sub(info.formspec_type.pos, info.spos))
+		dir = vector.normalize(vector.subtract(info.formspec_type.pos, info.spos))
 	else
 		dir = minetest.facedir_to_dir(info.dir)
 	end
