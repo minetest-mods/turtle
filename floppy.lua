@@ -83,7 +83,7 @@ minetest.register_node("turtle:floppy_programmator",{
 			local prog = progs[fields.pselector]
 			local stack = inv:get_stack("floppy", 1):to_table()
 			if stack == nil then return end
-			if stack.name ~= "turtle:floppy" or stack:is_empty() then return end
+			if stack.name ~= "turtle:floppy" or stack.count == 0 then return end
 			local contents, update = handle_floppy_meta(stack)
 			set_floppy_contents(stack.metadata, prog)
 			if update then
