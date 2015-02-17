@@ -195,7 +195,7 @@ local function turtle_dig(turtle, cptr, dir)
 	if on_use then
 		player:set_wielded_item(on_use(wieldstack, player, pointed_thing) or wieldstack)
 	else
-		local pos = info.spos
+		local pos = pointed_thing.under
 		local node = minetest.get_node(pos)
 		local def = ItemStack({name = node.name}):get_definition()
 		local toolcaps = wieldstack:get_tool_capabilities()
@@ -227,7 +227,7 @@ local function turtle_place(turtle, cptr, dir)
 	local player, pointed_thing = turtles.create_turtle_player(turtle, dir)
 	if pointed_thing == nil then return end
 	local formspec = minetest.get_meta(pointed_thing.under):get_string("formspec")
-	if formspec ~= nil then
+	if formspec ~= "" then
 		local info = turtles.get_turtle_info(turtle)
 		info.open_formspec = tl.read_formspec(formspec)
 		info.formspec_type = {type = "node", pos = pointed_thing.under}
