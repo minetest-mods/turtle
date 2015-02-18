@@ -12,7 +12,10 @@ local function pointable(stack, node)
 	return nodedef and def and (nodedef.pointable or (nodedef.liquidtype ~= "none" and def.liquid_pointable))
 end
 
-function turtles.create_turtle_player(turtle_id, dir, only_player)
+local NONE = 0
+local FRONT = 1
+local ANY = 2
+function turtles.create_turtle_player(turtle_id, dir, pointed_type)
 	local info = turtles.get_turtle_info(turtle_id)
 	local inv = turtles.get_turtle_inventory(turtle_id)
 	local pitch
@@ -68,17 +71,17 @@ function turtles.create_turtle_player(turtle_id, dir, only_player)
 		set_detach = delay(),
 		set_bone_position = delay(),
 	}
-	if only_player then return player end
+	if pointed_type == NONE then return player end
 	local above, under = nil, nil
 	local wieldstack = player:get_wielded_item()
 	local pos = vector.add(info.spos, dir)
 	if pointable(wieldstack, minetest.get_node(pos)) then
 		above = vector.new(info.spos)
 		under = pos
-	elseif pointable(wieldstack, minetest.get_node(vector.add(pos, dir))) then
+	elseif pointed_type == ANY and pointable(wieldstack, minetest.get_node(vector.add(pos, dir))) then
 		above = pos
 		under = vector.add(pos, dir)
-	else
+	elseif pointed_type == ANY then
 		for i = 0, 5 do
 			local dir2 = directions.side_to_dir(i)
 			if vector.dot(dir2, dir) == 0 and pointable(wieldstack, minetest.get_node(vector.add(pos, dir2))) then
@@ -187,7 +190,7 @@ end
 
 local function turtle_dig(turtle, cptr, dir)
 	tl.close_form(turtle)
-	local player, pointed_thing = turtles.create_turtle_player(turtle, dir)
+	local player, pointed_thing = turtles.create_turtle_player(turtle, dir, FRONT)
 	if pointed_thing == nil then return end
 	local info = turtles.get_turtle_info(turtle)
 	local wieldstack = player:get_wielded_item()
@@ -224,7 +227,7 @@ end
 
 local function turtle_place(turtle, cptr, dir)
 	tl.close_form(turtle)
-	local player, pointed_thing = turtles.create_turtle_player(turtle, dir)
+	local player, pointed_thing = turtles.create_turtle_player(turtle, dir, ANYDIR)
 	if pointed_thing == nil then return end
 	local formspec = minetest.get_meta(pointed_thing.under):get_string("formspec")
 	if formspec ~= "" then
@@ -329,7 +332,7 @@ local function get_turtle_formspec_player(turtle)
 	else
 		dir = minetest.facedir_to_dir(info.dir)
 	end
-	return turtles.create_turtle_player(turtle, dir, true)
+	return turtles.create_turtle_player(turtle, dir, NONE)
 end
 
 local function send_fields(turtle)

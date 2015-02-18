@@ -104,7 +104,7 @@ local function update_craftpreview(turtle)
 	local inv = turtles.get_turtle_inventory(turtle)
 	local info = turtles.get_turtle_info(turtle)
 	local dir = minetest.facedir_to_dir(info.dir)
-	local player = turtles.create_turtle_player(turtle, dir, true)
+	local player = turtles.create_turtle_player(turtle, dir, 0)
 	inv:set_stack("craftpreview", 1,
 		minetest.craft_predict(
 			minetest.get_craft_result({method = "normal", items = inv:get_list("craft"), width = inv:get_width("craft")}).item,
@@ -239,7 +239,7 @@ minetest.register_entity("turtle:turtle", {
 			elseif info.ndir ~= nil then
 				local yaw = self.object:getyaw()
 				local rotate_speed = info.rotate
-				local nyaw = info.ndir * math.pi/2
+				local nyaw = -info.ndir * math.pi/2
 				if done_rotation(yaw, nyaw, rotate_speed) then
 					self.object:setyaw(nyaw)
 					info.dir = info.ndir
