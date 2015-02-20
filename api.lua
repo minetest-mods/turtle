@@ -227,7 +227,7 @@ end
 
 local function turtle_place(turtle, cptr, dir)
 	tl.close_form(turtle)
-	local player, pointed_thing = turtles.create_turtle_player(turtle, dir, ANYDIR)
+	local player, pointed_thing = turtles.create_turtle_player(turtle, dir, ANY)
 	if pointed_thing == nil then return end
 	local formspec = minetest.get_meta(pointed_thing.under):get_string("formspec")
 	if formspec ~= "" then
