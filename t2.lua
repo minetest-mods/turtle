@@ -6,7 +6,7 @@ local DEBUG = true
 
 local turtle_infos = db.read_file("turtle_infos")
 
-minetest.register_on_shutdown(function()
+core.register_on_shutdown(function()
 	for id, info in pairs(turtle_infos) do
 		info.turtle = nil
 		info.playernames = {}
@@ -27,7 +27,7 @@ end
 
 function turtles.get_turtle_inventory(turtle_id)
 	local info = turtles.get_turtle_info(turtle_id)
-	return minetest.get_meta(info.spos):get_inventory()
+	return core.get_meta(info.spos):get_inventory()
 end
 
 function turtles.create_turtle_id()
@@ -77,7 +77,7 @@ local function turtle_receive(turtle, channel, msg)
 	on_disk_digiline_receive(turtle, channel, msg)
 end
 
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname:sub(1, 7) ~= "turtle:" then return end
 	local turtle_id = tonumber(formname:sub(8, -1))
 	if fields.f ~= nil and fields.f ~= "" then
@@ -103,17 +103,17 @@ end)
 local function update_craftpreview(turtle)
 	local inv = turtles.get_turtle_inventory(turtle)
 	local info = turtles.get_turtle_info(turtle)
-	local dir = minetest.facedir_to_dir(info.dir)
+	local dir = core.facedir_to_dir(info.dir)
 	local player = turtles.create_turtle_player(turtle, dir, 0)
 	inv:set_stack("craftpreview", 1,
-		minetest.craft_predict(
-			minetest.get_craft_result({method = "normal", items = inv:get_list("craft"), width = inv:get_width("craft")}).item,
+		core.craft_predict(
+			core.get_craft_result({method = "normal", items = inv:get_list("craft"), width = inv:get_width("craft")}).item,
 			player,
 			inv:get_list("craft"),
 			inv))
 end
 
-minetest.register_node("turtle:turtle", {
+core.register_node("turtle:turtle", {
 	description = "Turtle",
 	drawtype = "airlike",
 	inventory_image = "turtle_turtle_inv.png",
@@ -125,13 +125,13 @@ minetest.register_node("turtle:turtle", {
 	{
 		receptor = {},
 		effector = {action = function(pos, node, channel, msg)
-			local meta = minetest.get_meta(pos)
+			local meta = core.get_meta(pos)
 			local turtle = meta:get_int("turtle_id")
 			turtle_receive(turtle, channel, msg)
 		end},
 	},
 	after_place_node = function(pos)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		inv:set_size("floppy", 1)
 		inv:set_size("main", 8 * 4)
@@ -150,29 +150,29 @@ minetest.register_node("turtle:turtle", {
 		info.cptr = create_cptr()
 		info.playernames = {}
 		turtles.update_formspec(id)
-		local le = minetest.add_entity(pos, "turtle:turtle"):get_luaentity()
+		local le = core.add_entity(pos, "turtle:turtle"):get_luaentity()
 		info.turtle = le
 		le.turtle_id = id
 	end,
 	on_metadata_inventory_move = function(pos)
-		update_craftpreview(minetest.get_meta(pos):get_int("turtle_id"))
+		update_craftpreview(core.get_meta(pos):get_int("turtle_id"))
 	end,
 	on_metadata_inventory_take = function(pos)
-		update_craftpreview(minetest.get_meta(pos):get_int("turtle_id"))
+		update_craftpreview(core.get_meta(pos):get_int("turtle_id"))
 	end,
 	on_metadata_inventory_put = function(pos)
-		update_craftpreview(minetest.get_meta(pos):get_int("turtle_id"))
+		update_craftpreview(core.get_meta(pos):get_int("turtle_id"))
 	end,
 	on_rightclick = function(pos, node, clicker)
-		local turtle_id = minetest.get_meta(pos):get_int("turtle_id")
+		local turtle_id = core.get_meta(pos):get_int("turtle_id")
 		local info = turtles.get_turtle_info(turtle_id)
 		local name = clicker:get_player_name()
 		info.playernames[name] = true
-		minetest.show_formspec(name, "turtle:" .. tostring(turtle_id), info.formspec)
+		core.show_formspec(name, "turtle:" .. tostring(turtle_id), info.formspec)
 	end,
 })
 
-minetest.register_node("turtle:turtle2", {
+core.register_node("turtle:turtle2", {
 	description = "turtle:turtle2 (You hacker you)",
 	groups = {not_in_creative_inventory = 1},
 	drawtype = "airlike",
@@ -191,7 +191,7 @@ local function done_rotation(yaw, nyaw, rotate_speed)
 	return (((nyaw - yaw + rotate_speed) % (2 * math.pi)) - math.pi) * (((nyaw - yaw) % (2 * math.pi) - math.pi)) <= 0
 end
 
-minetest.register_entity("turtle:turtle", {
+core.register_entity("turtle:turtle", {
 	physical = true,
 	collisionbox = {-0.4999, -0.4999, -0.4999, 0.4999, 0.4999, 0.4999}, -- Not 0.5 to avoid the turtle being stuck due to rounding errors
 	collides_with_objects = false,
@@ -207,7 +207,7 @@ minetest.register_entity("turtle:turtle", {
 		if id ~= nil then
 			self.turtle_id = id
 			if turtle_infos[self.turtle_id] == nil then
-				minetest.set_node(vector.round(self.object:getpos()), {name = "air"})
+				core.set_node(vector.round(self.object:getpos()), {name = "air"})
 				self.object:remove()
 				return
 			end
@@ -232,10 +232,10 @@ minetest.register_entity("turtle:turtle", {
 					info.spos = npos
 					info.npos = nil
 					info.moving = nil
-					local meta = minetest.get_meta(spos):to_table()
-					minetest.set_node(spos, {name = "air"})
-					minetest.set_node(npos, {name = "turtle:turtle"})
-					minetest.get_meta(npos):from_table(meta)
+					local meta = core.get_meta(spos):to_table()
+					core.set_node(spos, {name = "air"})
+					core.set_node(npos, {name = "turtle:turtle"})
+					core.get_meta(npos):from_table(meta)
 					turtles.update_formspec(self.turtle_id)
 				else
 					self.object:setvelocity(vector.subtract(npos, spos))
@@ -262,7 +262,7 @@ minetest.register_entity("turtle:turtle", {
 					print(info.screen)
 					print("------------------------------------")
 				end
-				minetest.show_formspec(playername, "turtle:" .. tostring(self.turtle_id), info.formspec)
+				core.show_formspec(playername, "turtle:" .. tostring(self.turtle_id), info.formspec)
 			end
 			info.formspec_changed = nil
 		end
@@ -272,26 +272,26 @@ minetest.register_entity("turtle:turtle", {
 		local info = turtles.get_turtle_info(self.turtle_id)
 		local name = clicker:get_player_name()
 		info.playernames[name] = true
-		minetest.show_formspec(name, "turtle:" .. tostring(self.turtle_id), info.formspec)
+		core.show_formspec(name, "turtle:" .. tostring(self.turtle_id), info.formspec)
 	end,
 	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
 		if self.turtle_id == nil then return end
 		self.object:remove()
 		local info = turtles.get_turtle_info(self.turtle_id)
 		local pos = info.spos
-		minetest.add_item(pos, "turtle:turtle")
-		local inv = minetest.get_meta(pos):get_inventory()
+		core.add_item(pos, "turtle:turtle")
+		local inv = core.get_meta(pos):get_inventory()
 		
 		for list, nslots in pairs({["main"] = 8 * 4, ["floppy"] = 1, ["craft"] = 3 * 3}) do
 			for slot = 1, nslots do
-				minetest.add_item(pos, inv:get_stack(list, slot))
+				core.add_item(pos, inv:get_stack(list, slot))
 			end
 		end
 		
 		if info.npos then
-			minetest.set_node(info.npos, {name = "air"})
+			core.set_node(info.npos, {name = "air"})
 		end
-		minetest.set_node(pos, {name = "air"})
+		core.set_node(pos, {name = "air"})
 		turtle_infos[self.turtle_id] = nil
 	end,
 	get_staticdata = function(self)

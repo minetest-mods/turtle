@@ -17,19 +17,19 @@ local deserialize_inv = function(l)
 	return l2
 end
 
-local wpath = minetest.get_worldpath()
+local wpath = core.get_worldpath()
 local function read_file(fn)
 	local f = io.open(fn, "r")
 	if f==nil then return {} end
 	local t = f:read("*all")
 	f:close()
 	if t=="" or t==nil then return {} end
-	return minetest.deserialize(t)
+	return core.deserialize(t)
 end
 
 local function write_file(fn, tbl)
 	local f = io.open(fn, "w")
-	f:write(minetest.serialize(tbl))
+	f:write(core.serialize(tbl))
 	f:close()
 end
 
@@ -61,7 +61,7 @@ end
 turtle_infos = read_file(wpath.."/turtle_infos")
 floppies = read_file(wpath.."/floppies")
 
-minetest.register_on_shutdown(function()
+core.register_on_shutdown(function()
 	for turtle,i in pairs(turtle_infos) do
 		i.turtle = nil
 		i.playernames = nil
@@ -108,7 +108,7 @@ function escape(text)
 	for i=1, string.len(text) do
 		if string.byte(text, i)~=0 then text2 = text2..string.sub(text, i, i) end
 	end
-	return minetest.formspec_escape(text2)
+	return core.formspec_escape(text2)
 end
 
 function create_text_formspec(text)
@@ -191,7 +191,7 @@ local on_disk_digiline_receive = function (turtle, channel, msg)
 	end
 end
 
-minetest.register_craftitem("turtle:floppy",{
+core.register_craftitem("turtle:floppy",{
 	description = "Floppy disk",
 	inventory_image = "floppy.png",
 	stack_max = 1,
@@ -201,13 +201,13 @@ local progs = {["Empty"] = string.rep(string.char(0), 16536),
 		["Forth Boot Disk"] = create_forth_floppy(),
 		}
 
-minetest.register_node("turtle:floppy_programmator",{
+core.register_node("turtle:floppy_programmator",{
 	description = "Floppy disk programmator",
 	tiles = {"floppy_programmator_top.png", "floppy_programmator_bottom.png", "floppy_programmator_right.png", "floppy_programmator_left.png", "floppy_programmator_back.png", "floppy_programmator_front.png"},
 	groups = {cracky=3},
 	sounds = default.node_sound_stone_defaults(),
 	on_construct = function(pos)
-		local meta=minetest.get_meta(pos)
+		local meta=core.get_meta(pos)
 		local inv = meta:get_inventory()
 		inv:set_size("floppy", 1)
 		meta:set_int("selected", 1)
@@ -224,7 +224,7 @@ minetest.register_node("turtle:floppy_programmator",{
 		meta:set_string("formspec", s)
 	end,
 	can_dig = function(pos, player)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		return inv:is_empty("floppy")
 	end,
@@ -233,7 +233,7 @@ minetest.register_node("turtle:floppy_programmator",{
 		return 0
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		if fields.prog then
 			local inv = meta:get_inventory()
 			local prog = progs[fields.pselector]
@@ -257,7 +257,7 @@ function turtle_receptor_send(turtle, channel, msg)
 	--on_turtle_command_receive(turtle, channel, msg)
 end
 
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname:sub(1,6) ~= "turtle" then return end
 	if fields.f ~= nil and fields.f ~= "" then
 		if string.len(fields.f) > 80 then
@@ -278,19 +278,19 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	end
 end)
 
-minetest.register_craftitem("turtle:turtle",{
+core.register_craftitem("turtle:turtle",{
 	description = "Turtle",
 	image = "turtle_turtle_inv.png",
 	on_place = function(itemstack, placer, pointed_thing)
 		if pointed_thing.type ~= "node" then return end
-		local obj = minetest.add_entity(pointed_thing.above, "turtle:turtle")
+		local obj = core.add_entity(pointed_thing.above, "turtle:turtle")
 		itemstack:take_item()
 		--return itemstack
 	end
 })
 
-turtle_invs = minetest.create_detached_inventory("turtle:invs")
-turtle_floppy = minetest.create_detached_inventory("turtle:floppy")
+turtle_invs = core.create_detached_inventory("turtle:invs")
+turtle_floppy = core.create_detached_inventory("turtle:floppy")
 for turtle,i in pairs(turtle_infos) do
 	turtle_invs:set_size(turtle, 16)
 	for l,stack in pairs(deserialize_inv(i.inventory)) do
@@ -317,7 +317,7 @@ local function done_rotation(yaw, nyaw, rotate_speed)
 	return (nyaw - yaw + rotate_speed - math.pi/2)%(2*math.pi) < math.pi
 end
 
-minetest.register_entity("turtle:turtle", {
+core.register_entity("turtle:turtle", {
 	physical = true,
 	force_load = TURTLES_FORCE_LOAD,
 	collisionbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5},
@@ -389,7 +389,7 @@ minetest.register_entity("turtle:turtle", {
 					print(info.text)
 					print("------------------------------------")
 				end
-				minetest.show_formspec(playername, self.n, info.formspec)
+				core.show_formspec(playername, self.n, info.formspec)
 			end
 			info.formspec_changed = nil
 		end
@@ -398,20 +398,20 @@ minetest.register_entity("turtle:turtle", {
 		local info = get_turtle_info(self.n)
 		local name = clicker:get_player_name()
 		info.playernames[name] = true
-		minetest.show_formspec(name, self.n, info.formspec)
+		core.show_formspec(name, self.n, info.formspec)
 	end,
 	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
 		self.object:remove()
-		minetest.add_item(turtle_infos[self.n].spos, "turtle:turtle")
+		core.add_item(turtle_infos[self.n].spos, "turtle:turtle")
 		
 		for i=1,16 do
 			local stack = turtle_invs:get_stack(self.n, i)
-			minetest.add_item(turtle_infos[self.n].spos, stack)
+			core.add_item(turtle_infos[self.n].spos, stack)
 			turtle_invs:set_stack(self.n, i, ItemStack(""))
 		end
 		
 		local stack = turtle_floppy:get_stack(self.n, 1)
-		minetest.add_item(turtle_infos[self.n].spos, stack)
+		core.add_item(turtle_infos[self.n].spos, stack)
 		turtle_floppy:set_stack(self.n, 1, ItemStack(""))
 		
 		turtle_infos[self.n] = nil

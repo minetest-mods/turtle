@@ -12,7 +12,7 @@ local function file_exists(name)
 end
 
 function loadpkg(na)
-	local modpath = minetest.get_modpath("forth_computer")
+	local modpath = core.get_modpath("forth_computer")
 	local ol = package.cpath
 	local sp
 	if file_exists(modpath.."/INIT.LUA") then
@@ -34,7 +34,7 @@ function loadpkg(na)
 	return nil
 end
 
-local modpath = minetest.get_modpath("forth_computer")
+local modpath = core.get_modpath("forth_computer")
 
 if bit32 == nil and jit == nil then
 	-- No need to use the library if LuaJIT is there, the Lua one is more efficient
@@ -54,19 +54,19 @@ end
 dofile(modpath.."/computer_memory.lua")
 dofile(modpath.."/forth_floppy.lua")
 
-local wpath = minetest.get_worldpath()
+local wpath = core.get_worldpath()
 local function read_file(fn)
 	local f = io.open(fn, "r")
 	if f==nil then return {} end
 	local t = f:read("*all")
 	f:close()
 	if t=="" or t==nil then return {} end
-	return minetest.deserialize(t)
+	return core.deserialize(t)
 end
 
 local function write_file(fn, tbl)
 	local f = io.open(fn, "w")
-	f:write(minetest.serialize(tbl))
+	f:write(core.serialize(tbl))
 	f:close()
 end
 
@@ -75,13 +75,13 @@ local oldcptrs = read_file(wpath.."/forth_computers")
 local screens = read_file(wpath.."/screens")
 
 function hacky_swap_node(pos,name)
-   local node = minetest.get_node(pos)
+   local node = core.get_node(pos)
    if node.name ~= name then
-      local meta = minetest.get_meta(pos)
+      local meta = core.get_meta(pos)
       local meta0 = meta:to_table()
       node.name = name
-      minetest.set_node(pos,node)
-      meta = minetest.get_meta(pos)
+      core.set_node(pos,node)
+      meta = core.get_meta(pos)
       meta:from_table(meta0)
    end
    return node.name
@@ -194,7 +194,7 @@ end
 
 local function emit(pos, c, cptr)
 	local s = string.char(bit32.band(c, 0xff))
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	local text = meta:get_string("text")
 	local ls = lines(text)
 	local ll = ls[#ls]
@@ -251,18 +251,18 @@ local function send_message(pos, cptr, maddr, mlen)
 end
 
 local function run_computer(pos,cptr)
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	local oldpos = meta:get_string("pos")
 	if oldpos == "" then
 		return
 	end
-	oldpos = minetest.deserialize(oldpos)
+	oldpos = core.deserialize(oldpos)
 	if oldpos.x ~= pos.x or oldpos.y ~= pos.y or oldpos.z ~= pos.z then
 		local old_cptr = oldcptrs[hashpos(oldpos)]
 		for key, _ in pairs(oldcptrs) do
 			print(key)
 		end
-		meta:set_string("pos", minetest.serialize(pos))
+		meta:set_string("pos", core.serialize(pos))
 		print(hashpos(oldpos))
 		if old_cptr ~= nil then
 			cptrs[hashpos(pos)].cptr = old_cptr.cptr
@@ -413,7 +413,7 @@ local on_computer_digiline_receive = function (pos, node, channel, msg)
 	cptr.digiline_events[channel] = msg
 end
 
-minetest.register_node("forth_computer:computer",{
+core.register_node("forth_computer:computer",{
 	description = "Computer on (you hacker you)",
 	paramtype2 = "facedir",
 	tiles = {"cpu_top.png", "cpu_bottom.png", "cpu_right.png", "cpu_left.png", "cpu_back.png", "cpu_front.png"},
@@ -427,8 +427,8 @@ minetest.register_node("forth_computer:computer",{
 	on_construct = function(pos)
 		if cptrs[hashpos(pos)] then return end
 		cptrs[hashpos(pos)] = {pos=pos, cptr=create_cptr()}
-		local meta = minetest.get_meta(pos)
-		meta:set_string("pos", minetest.serialize(pos))
+		local meta = core.get_meta(pos)
+		meta:set_string("pos", core.serialize(pos))
 	end,
 	on_destruct = function(pos)
 		if cptrs[hashpos(pos)] == nil then return end
@@ -448,7 +448,7 @@ minetest.register_node("forth_computer:computer",{
 	end,
 })
 
-minetest.register_node("forth_computer:computer_off",{
+core.register_node("forth_computer:computer_off",{
 	description = "Computer",
 	paramtype2 = "facedir",
 	tiles = {"cpu_top.png", "cpu_bottom.png", "cpu_right.png", "cpu_left.png", "cpu_back.png", "cpu_front_off.png"},
@@ -462,8 +462,8 @@ minetest.register_node("forth_computer:computer_off",{
 	on_construct = function(pos)
 		if cptrs[hashpos(pos)] then return end
 		cptrs[hashpos(pos)] = {pos=pos, cptr=create_cptr()}
-		local meta = minetest.get_meta(pos)
-		meta:set_string("pos", minetest.serialize(pos))
+		local meta = core.get_meta(pos)
+		meta:set_string("pos", core.serialize(pos))
 	end,
 	on_destruct = function(pos)
 		if cptrs[hashpos(pos)] == nil then return end
@@ -484,7 +484,7 @@ minetest.register_node("forth_computer:computer_off",{
 })
 
 local on_screen_digiline_receive = function (pos, node, channel, msg)
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	if channel == meta:get_string("channel") then
 		local ntext = add_text(meta:get_string("text"), msg)
 		meta:set_string("text",ntext)
@@ -492,7 +492,7 @@ local on_screen_digiline_receive = function (pos, node, channel, msg)
 	end
 end
 
-minetest.register_node("forth_computer:screen",{
+core.register_node("forth_computer:screen",{
 	description = "Screen",
 	tiles = {"screen_top.png", "screen_bottom.png", "screen_right.png", "screen_left.png", "screen_back.png", "screen_front.png"},
 	drawtype = "nodebox",
@@ -515,14 +515,14 @@ minetest.register_node("forth_computer:screen",{
 		effector = {action = on_screen_digiline_receive},
 	},
 	on_construct = function(pos)
-		local meta=minetest.get_meta(pos)
+		local meta=core.get_meta(pos)
 		meta:set_string("text","\n\n\n\n\n\n\n\n\n\n\n\n")
 		screens[hashpos(pos)] = {pos=pos, fmodif=false}
 		meta:set_string("channel", "")
 		meta:set_string("formspec", "field[channel;Channel;${channel}]")
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		fields.channel = fields.channel or ""
 		meta:set_string("channel", fields.channel)
 		meta:set_string("formspec", "")
@@ -532,17 +532,17 @@ minetest.register_node("forth_computer:screen",{
 	end,
 	on_rightclick = function(pos, node, clicker)
 		local name = clicker:get_player_name()
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		if screens[hashpos(pos)] == nil then
 			screens[hashpos(pos)] = {pos=pos, fmodif=false}
 		end
 		screens[hashpos(pos)].pname = name
-		minetest.show_formspec(name,"screen"..hashpos(pos),create_formspec(meta:get_string("text")))
+		core.show_formspec(name,"screen"..hashpos(pos),create_formspec(meta:get_string("text")))
 	end,
 })
 
 local on_disk_digiline_receive = function (pos, node, channel, msg)
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	if channel == meta:get_string("channel") then
 		local page = string.byte(msg, 1)
 		if page==nil then return end
@@ -563,7 +563,7 @@ local on_disk_digiline_receive = function (pos, node, channel, msg)
 	end
 end
 
-minetest.register_node("forth_computer:disk",{
+core.register_node("forth_computer:disk",{
 	description = "Disk drive",
 	paramtype2 = "facedir",
 	tiles = {"floppy_drive_top.png", "floppy_drive_bottom.png", "floppy_drive_right.png", "floppy_drive_left.png", "floppy_drive_back.png", "floppy_drive_front.png"},
@@ -575,7 +575,7 @@ minetest.register_node("forth_computer:disk",{
 		effector = {action = on_disk_digiline_receive},
 	},
 	on_construct = function(pos)
-		local meta=minetest.get_meta(pos)
+		local meta=core.get_meta(pos)
 		local inv = meta:get_inventory()
 		inv:set_size("floppy", 1)
 		meta:set_string("channel", "")
@@ -585,7 +585,7 @@ minetest.register_node("forth_computer:disk",{
 					"list[current_player;main;0,1.5;8,4;]")
 	end,
 	can_dig = function(pos, player)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		return inv:is_empty("floppy")
 	end,
@@ -594,7 +594,7 @@ minetest.register_node("forth_computer:disk",{
 		return 0
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		fields.channel = fields.channel or ""
 		meta:set_string("channel", fields.channel)
 	end,
@@ -618,13 +618,13 @@ local progs = {["Empty"] = string.rep(string.char(0), 16536),
 		["Double number library"] = create_from_file(modpath.."/double.fth"),
 		--["Floating point number library"] = create_from_file(modpath.."/float.fth"),
 		["Decompiler"] = create_from_file(modpath.."/see.fth")}
-minetest.register_node("forth_computer:floppy_programmator",{
+core.register_node("forth_computer:floppy_programmator",{
 	description = "Floppy disk programmator",
 	tiles = {"floppy_programmator_top.png", "floppy_programmator_bottom.png", "floppy_programmator_right.png", "floppy_programmator_left.png", "floppy_programmator_back.png", "floppy_programmator_front.png"},
 	groups = {cracky=3},
 	sounds = default.node_sound_stone_defaults(),
 	on_construct = function(pos)
-		local meta=minetest.get_meta(pos)
+		local meta=core.get_meta(pos)
 		local inv = meta:get_inventory()
 		inv:set_size("floppy", 1)
 		meta:set_int("selected", 1)
@@ -641,7 +641,7 @@ minetest.register_node("forth_computer:floppy_programmator",{
 		meta:set_string("formspec", s)
 	end,
 	can_dig = function(pos, player)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		return inv:is_empty("floppy")
 	end,
@@ -650,7 +650,7 @@ minetest.register_node("forth_computer:floppy_programmator",{
 		return 0
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		if fields.prog then
 			local inv = meta:get_inventory()
 			local prog = progs[fields.pselector]
@@ -664,13 +664,13 @@ minetest.register_node("forth_computer:floppy_programmator",{
 })
 
 
-minetest.register_craftitem("forth_computer:floppy",{
+core.register_craftitem("forth_computer:floppy",{
 	description = "Floppy disk",
 	inventory_image = "floppy.png",
 	stack_max = 1,
 })
 
-minetest.register_globalstep(function(dtime)
+core.register_globalstep(function(dtime)
 	for _,i in pairs(cptrs) do
 		run_computer(i.pos, i.cptr)
 	end
@@ -679,14 +679,14 @@ minetest.register_globalstep(function(dtime)
 		if i.fmodif then
 			i.fmodif=false
 			if i.pname~=nil then
-				local meta = minetest.get_meta(i.pos)
-				minetest.show_formspec(i.pname,"screen"..hashpos(i.pos),create_formspec(meta:get_string("text")))
+				local meta = core.get_meta(i.pos)
+				core.show_formspec(i.pname,"screen"..hashpos(i.pos),create_formspec(meta:get_string("text")))
 			end
 		end
 	end
 end)
 
-minetest.register_on_shutdown(function()
+core.register_on_shutdown(function()
 	for _,i in pairs(screens) do
 		i.fmodif = false
 		i.pname = nil
@@ -702,7 +702,7 @@ function escape(text)
 	for i=1, string.len(text) do
 		if string.byte(text, i)~=0 then text2 = text2..string.sub(text, i, i) end
 	end
-	return minetest.formspec_escape(text2)
+	return core.formspec_escape(text2)
 end
 
 function create_formspec(text)
@@ -718,7 +718,7 @@ function create_formspec(text)
 	--return "size[5,4.5;]textarea[0.3,0;4.4,4.1;;"..escape(text)..";]field[0.3,3.6;4.4,1;f;;]"
 end
 
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname:sub(1,6)~="screen" then return end
 	local pos = dehashpos(formname:sub(7,-1))
 	local s = screens[hashpos(pos)]
@@ -733,9 +733,9 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		fields["f"] = string.sub(fields["f"],1,MAX_LINE_LENGHT)
 	end
 	digiline:receptor_send(pos, digiline.rules.default, "screen", fields["f"])
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	local ntext = add_text(meta:get_string("text"), fields["f"])
 	meta:set_string("text",ntext)
-	minetest.show_formspec(player:get_player_name(),formname,create_formspec(ntext))
+	core.show_formspec(player:get_player_name(),formname,create_formspec(ntext))
 end)
 

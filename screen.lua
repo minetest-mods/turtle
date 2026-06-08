@@ -32,7 +32,7 @@ local function escape(text)
 	for i = 1, string.len(text) do
 		if string.byte(text, i) ~= 0 then text2 = text2 .. string.sub(text, i, i) end
 	end
-	return minetest.formspec_escape(text2)
+	return core.formspec_escape(text2)
 end
 
 function screen.new()
@@ -77,7 +77,7 @@ local function dehashpos(str)
 end
 
 local function screen_digiline_receive(pos, node, channel, msg)
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	if channel == meta:get_string("channel") then
 		local ntext = screen.add_text(meta:get_string("text"), msg)
 		meta:set_string("text", ntext)
@@ -94,13 +94,13 @@ local function create_screen_formspec(text)
 	return "size[5,4.5;]" .. screen.create_text_formspec(text, 0, 0)
 end
 
-minetest.register_globalstep(function(dtime)
+core.register_globalstep(function(dtime)
 	for screenhash, i in pairs(screens) do
 		if i.fmodif then
 			i.fmodif = false
-			local meta = minetest.get_meta(i.pos)
+			local meta = core.get_meta(i.pos)
 			for pname, _ in pairs(i.playernames) do
-				minetest.show_formspec(pname, "screen" .. screenhash,
+				core.show_formspec(pname, "screen" .. screenhash,
 					create_screen_formspec(meta:get_string("text")))
 			end
 		end
@@ -108,7 +108,7 @@ minetest.register_globalstep(function(dtime)
 end)
 
 local MAX_TEXT_SEND = 80
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname:sub(1,6) ~= "screen" then return end
 	local hash = formname:sub(7, -1)
 	local s = screens[hash]
@@ -124,13 +124,13 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		fields["f"] = string.sub(fields["f"], 1, MAX_TEXT_SEND)
 	end
 	digiline:receptor_send(pos, digiline.rules.default, "screen", fields["f"])
-	local meta = minetest.get_meta(pos)
+	local meta = core.get_meta(pos)
 	local ntext = screen.add_text(meta:get_string("text"), fields["f"])
 	meta:set_string("text", ntext)
-	minetest.show_formspec(player:get_player_name(), formname, create_screen_formspec(ntext))
+	core.show_formspec(player:get_player_name(), formname, create_screen_formspec(ntext))
 end)
 
-minetest.register_node("turtle:screen", {
+core.register_node("turtle:screen", {
 	description = "Screen",
 	tiles = {"screen_top.png", "screen_bottom.png", "screen_right.png", "screen_left.png", "screen_back.png", "screen_front.png"},
 	drawtype = "nodebox",
@@ -152,14 +152,14 @@ minetest.register_node("turtle:screen", {
 		effector = {action = screen_digiline_receive},
 	},
 	on_construct = function(pos)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		meta:set_string("text", "\n\n\n\n\n\n\n\n\n\n\n\n")
 		screens[hashpos(pos)] = {pos = pos, fmodif = false, playernames = {}}
 		meta:set_string("channel", "")
 		meta:set_string("formspec", "field[channel;Channel;${channel}]")
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		fields.channel = fields.channel or ""
 		meta:set_string("channel", fields.channel)
 		meta:set_string("formspec", "")
@@ -169,13 +169,13 @@ minetest.register_node("turtle:screen", {
 	end,
 	on_rightclick = function(pos, node, clicker)
 		local name = clicker:get_player_name()
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local hash = hashpos(pos)
 		if screens[hash] == nil then
 			screens[hash] = {pos = pos, fmodif = false, playernames = {}}
 		end
 		screens[hash].playernames[name] = true
-		minetest.show_formspec(name, "screen" .. hash,
+		core.show_formspec(name, "screen" .. hash,
 			create_screen_formspec(meta:get_string("text")))
 	end,
 })

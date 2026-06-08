@@ -7,8 +7,8 @@ local function delay(x)
 end
 
 local function pointable(stack, node)
-	local nodedef = minetest.registered_nodes[node.name]
-	local def = minetest.registered_items[stack:get_name()]
+	local nodedef = core.registered_nodes[node.name]
+	local def = core.registered_items[stack:get_name()]
 	return nodedef and def and (nodedef.pointable or (nodedef.liquidtype ~= "none" and def.liquid_pointable))
 end
 
@@ -75,16 +75,16 @@ function turtles.create_turtle_player(turtle_id, dir, pointed_type)
 	local above, under = nil, nil
 	local wieldstack = player:get_wielded_item()
 	local pos = vector.add(info.spos, dir)
-	if pointable(wieldstack, minetest.get_node(pos)) then
+	if pointable(wieldstack, core.get_node(pos)) then
 		above = vector.new(info.spos)
 		under = pos
-	elseif pointed_type == ANY and pointable(wieldstack, minetest.get_node(vector.add(pos, dir))) then
+	elseif pointed_type == ANY and pointable(wieldstack, core.get_node(vector.add(pos, dir))) then
 		above = pos
 		under = vector.add(pos, dir)
 	elseif pointed_type == ANY then
 		for i = 0, 5 do
 			local dir2 = directions.side_to_dir(i)
-			if vector.dot(dir2, dir) == 0 and pointable(wieldstack, minetest.get_node(vector.add(pos, dir2))) then
+			if vector.dot(dir2, dir) == 0 and pointable(wieldstack, core.get_node(vector.add(pos, dir2))) then
 				under = vector.add(pos, dir2)
 				break
 			end
@@ -113,8 +113,8 @@ local function tl_move(turtle, cptr, dir)
 	end
 	local spos = info.spos
 	local npos = vector.add(spos, dir)
-	if minetest.get_node(npos).name == "air" then
-		minetest.set_node(npos, {name = "turtle:turtle2"})
+	if core.get_node(npos).name == "air" then
+		core.set_node(npos, {name = "turtle:turtle2"})
 		info.npos = npos
 		info.moving = true
 		info.energy = info.energy - MOVE_COST
@@ -127,12 +127,12 @@ end
 
 function tl.forward(turtle, cptr)
 	local dir = turtles.get_turtle_info(turtle).dir
-	tl_move(turtle, cptr, minetest.facedir_to_dir(dir))
+	tl_move(turtle, cptr, core.facedir_to_dir(dir))
 end
 
 function tl.backward(turtle, cptr)
 	local dir = turtles.get_turtle_info(turtle).dir
-	tl_move(turtle, cptr, vector.multiply(minetest.facedir_to_dir(dir), -1))
+	tl_move(turtle, cptr, vector.multiply(core.facedir_to_dir(dir), -1))
 end
 
 function tl.up(turtle, cptr)
@@ -171,13 +171,13 @@ end
 local function turtle_detect(turtle, cptr, dir)
 	local info = turtles.get_turtle_info(turtle)
 	local pos = vector.add(info.spos, dir)
-	local name = minetest.get_node(pos).name
+	local name = core.get_node(pos).name
 	write_string_at(cptr, cptr.X, name)
 end
 
 function tl.detect(turtle, cptr)
 	local info = turtles.get_turtle_info(turtle)
-	turtle_detect(turtle, cptr, minetest.facedir_to_dir(info.dir))
+	turtle_detect(turtle, cptr, core.facedir_to_dir(info.dir))
 end
 
 function tl.detectup(turtle, cptr)
@@ -194,19 +194,19 @@ local function turtle_dig(turtle, cptr, dir)
 	if pointed_thing == nil then return end
 	local info = turtles.get_turtle_info(turtle)
 	local wieldstack = player:get_wielded_item()
-	local on_use = (minetest.registered_items[wieldstack:get_name()] or {}).on_use
+	local on_use = (core.registered_items[wieldstack:get_name()] or {}).on_use
 	if on_use then
 		player:set_wielded_item(on_use(wieldstack, player, pointed_thing) or wieldstack)
 	else
 		local pos = pointed_thing.under
-		local node = minetest.get_node(pos)
+		local node = core.get_node(pos)
 		local def = ItemStack({name = node.name}):get_definition()
 		local toolcaps = wieldstack:get_tool_capabilities()
-		local dp = minetest.get_dig_params(def.groups, toolcaps)
-		local dp2 = minetest.get_dig_params(def.groups, ItemStack(""):get_tool_capabilities())
+		local dp = core.get_dig_params(def.groups, toolcaps)
+		local dp2 = core.get_dig_params(def.groups, ItemStack(""):get_tool_capabilities())
 		if (dp.diggable or dp2.diggable) and def.diggable and def.pointable and (not def.can_dig or def.can_dig(pos, player)) and
-				(not minetest.is_protected(pos, player:get_player_name())) then
-			local on_dig = (minetest.registered_nodes[node.name] or {on_dig = minetest.node_dig}).on_dig
+				(not core.is_protected(pos, player:get_player_name())) then
+			local on_dig = (core.registered_nodes[node.name] or {on_dig = core.node_dig}).on_dig
 			on_dig(pos, node, player)
 		end
 	end
@@ -214,7 +214,7 @@ end
 
 function tl.dig(turtle, cptr)
 	local info = turtles.get_turtle_info(turtle)
-	turtle_dig(turtle, cptr, minetest.facedir_to_dir(info.dir))
+	turtle_dig(turtle, cptr, core.facedir_to_dir(info.dir))
 end
 
 function tl.digup(turtle, cptr)
@@ -229,7 +229,7 @@ local function turtle_place(turtle, cptr, dir)
 	tl.close_form(turtle)
 	local player, pointed_thing = turtles.create_turtle_player(turtle, dir, ANY)
 	if pointed_thing == nil then return end
-	local formspec = minetest.get_meta(pointed_thing.under):get_string("formspec")
+	local formspec = core.get_meta(pointed_thing.under):get_string("formspec")
 	if formspec ~= "" then
 		local info = turtles.get_turtle_info(turtle)
 		info.open_formspec = tl.read_formspec(formspec)
@@ -238,13 +238,13 @@ local function turtle_place(turtle, cptr, dir)
 		return
 	end
 	local wieldstack = player:get_wielded_item()
-	local on_place = (minetest.registered_items[wieldstack:get_name()] or {on_place = minetest.item_place}).on_place
+	local on_place = (core.registered_items[wieldstack:get_name()] or {on_place = core.item_place}).on_place
 	player:set_wielded_item(on_place(wieldstack, player, pointed_thing) or wieldstack)
 end
 
 function tl.place(turtle, cptr)
 	local info = turtles.get_turtle_info(turtle)
-	turtle_place(turtle, cptr, minetest.facedir_to_dir(info.dir))
+	turtle_place(turtle, cptr, core.facedir_to_dir(info.dir))
 end
 
 function tl.placeup(turtle, cptr)
@@ -267,7 +267,7 @@ function tl.refuel(turtle, cptr, slot, nmax)
 	local inv = turtles.get_turtle_inventory(turtle)
 	local stack = inv:get_stack("main", slot)
 	if technic and technic.power_tools[stack:get_name()] then
-		local meta = minetest.deserialize(stack:get_metadata()) or {}
+		local meta = core.deserialize(stack:get_metadata()) or {}
 		if not meta.charge then
 			meta.charge = 0
 		end
@@ -275,13 +275,13 @@ function tl.refuel(turtle, cptr, slot, nmax)
 		meta.charge = 0
 		local max_charge = technic.power_tools[stack:get_name()]
 		technic.set_RE_wear(stack, 0, max_charge)
-		stack:set_metadata(minetest.serialize(meta))
+		stack:set_metadata(core.serialize(meta))
 		inv:set_stack("main", slot, stack)
 		cptr.X = u16(-1)
 		return
 	end
 	
-	local fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {stack}})
+	local fuel, afterfuel = core.get_craft_result({method = "fuel", width = 1, items = {stack}})
 	if fuel.time <= 0 then
 		cptr.X = 0
 		return
@@ -291,7 +291,7 @@ function tl.refuel(turtle, cptr, slot, nmax)
 	fs.count = 1
 	local fstack = ItemStack(fs)
 	local fuel, afterfuel
-	fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {fstack}})
+	fuel, afterfuel = core.get_craft_result({method = "fuel", width = 1, items = {fstack}})
 	stack:take_item(count)
 	if afterfuel ~= nil then
 		afterfuel = afterfuel.items[1]
@@ -301,7 +301,7 @@ function tl.refuel(turtle, cptr, slot, nmax)
 		local leftover = stack:add_item(ItemStack(afterfuel))
 		inv:set_stack("main", slot, stack)
 		local leftover2 = inv:add_item("main", leftover)
-		minetest.add_item(info.spos, leftover2)
+		core.add_item(info.spos, leftover2)
 	else
 		inv:set_stack("main", slot, stack)
 	end
@@ -318,7 +318,7 @@ end
 --------------
 -- Formspec --
 --------------
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
 	if player:get_player_name():sub(1, 7) == "turtle:" and formname == "turtle:inventory" then
 		return true
 	end
@@ -330,7 +330,7 @@ local function get_turtle_formspec_player(turtle)
 	if info.formspec_type and info.formspec_type.type == "node" then
 		dir = vector.normalize(vector.subtract(info.formspec_type.pos, info.spos))
 	else
-		dir = minetest.facedir_to_dir(info.dir)
+		dir = core.facedir_to_dir(info.dir)
 	end
 	return turtles.create_turtle_player(turtle, dir, NONE)
 end
@@ -341,14 +341,14 @@ local function send_fields(turtle)
 	info.formspec_fields = {}
 	local player = get_turtle_formspec_player(turtle)
 	if info.formspec_type.type == "show" then
-		for _, func in ipairs(minetest.registered_on_receive_fields) do
+		for _, func in ipairs(core.registered_on_receive_fields) do
 			if func(player, info.formspec_type.formname, fields) then
 				return
 			end
 		end
 	else
 		local pos = info.formspec_type.pos
-		local nodedef = minetest.registered_nodes[minetest.get_node(pos).name]
+		local nodedef = core.registered_nodes[core.get_node(pos).name]
 		if nodedef and nodedef.on_receive_fields then
 			nodedef.on_receive_fields(vector.new(pos), "", fields, player)
 		end
@@ -437,8 +437,8 @@ function tl.read_formspec(formspec)
 	return {lists = merge_adjacent_lists(lsts)}
 end
 
-local old_show_formspec = minetest.show_formspec
-function minetest.show_formspec(playername, formname, formspec)
+local old_show_formspec = core.show_formspec
+function core.show_formspec(playername, formname, formspec)
 	if playername:sub(1, 7) == "turtle:" then
 		local id = tonumber(playername:sub(8, -1))
 		local info = turtles.get_turtle_info(id)
@@ -544,7 +544,7 @@ local function get_inventory_from_location(turtle, location)
 		local info = turtles.get_turtle_info(turtle)
 		local formspec = info.formspec_type
 		if formspec and formspec.type == "node" then
-			return minetest.get_meta(formspec.pos):get_inventory()
+			return core.get_meta(formspec.pos):get_inventory()
 		end
 		print("WARNING: tried to access context without open node formspec")
 	elseif location:sub(1, 8) == "nodemeta" then
@@ -552,7 +552,7 @@ local function get_inventory_from_location(turtle, location)
 		local spos = split_str(p[2], ",")
 		local pos = {x = tonumber(spos[1]), y = tonumber(spos[2]), z = tonumber(spos[3])}
 		if pos.x and pos.y and pos.z then
-			return minetest.get_meta(pos):get_inventory()
+			return core.get_meta(pos):get_inventory()
 		end
 		print("WARNING: incorrect nodemeta element: " .. location)
 	else
@@ -590,8 +590,8 @@ end
 
 local function get_callbacks(location)
 	if location.type == "node" then
-		local node = minetest.get_node(location.pos)
-		local nodedef = minetest.registered_nodes[node.name] or {}
+		local node = core.get_node(location.pos)
+		local nodedef = core.registered_nodes[node.name] or {}
 		return {allow_move = function(list1, index1, list2, index2, count, player)
 				return nodedef.allow_metadata_inventory_move and
 					nodedef.allow_metadata_inventory_move(location.pos, list1, index1, list2, index2, count, player) or
@@ -679,8 +679,8 @@ local function move(inv1, list1, index1, inv2, list2, index2, player, count)
 		local c = 0
 		local crafted_stack = ItemStack("")
 		while c < count do
-			local st = minetest.craft_predict(
-				minetest.get_craft_result(
+			local st = core.craft_predict(
+				core.get_craft_result(
 					{method = "normal",
 					items = inv1:get_list("craft"),
 					width = inv1:get_width("craft")}).item,
@@ -692,13 +692,13 @@ local function move(inv1, list1, index1, inv2, list2, index2, player, count)
 				break
 			end
 			local old_grid = inv1:get_list("craft")
-			local out, decr_input = minetest.get_craft_result(
+			local out, decr_input = core.get_craft_result(
 							{method = "normal",
 							items = inv1:get_list("craft"),
 							width = inv1:get_width("craft")})
 			local item = out.item
 			inv1:set_list("craft", decr_input.items)
-			local crafted = minetest.on_craft(item, player, old_grid, inv1)
+			local crafted = core.on_craft(item, player, old_grid, inv1)
 			crafted_stack:add_item(crafted)
 			stack_to:add_item(crafted)
 			c = c + 1

@@ -2,7 +2,7 @@ floppy = {}
 
 local floppies = db.read_file("floppies")
 
-minetest.register_on_shutdown(function()
+core.register_on_shutdown(function()
 	db.write_file("floppies", floppies)
 end)
 
@@ -33,7 +33,7 @@ local function set_floppy_contents(name, contents)
 	floppies[tonumber(name)] = contents
 end
 
-minetest.register_craftitem("turtle:floppy", {
+core.register_craftitem("turtle:floppy", {
 	description = "Floppy disk",
 	inventory_image = "floppy.png",
 	stack_max = 1,
@@ -44,14 +44,14 @@ local progs = {
 	["Forth Boot Disk"] = create_forth_floppy(),
 }
 
-minetest.register_node("turtle:floppy_programmator",{
+core.register_node("turtle:floppy_programmator",{
 	description = "Floppy disk programmator",
 	tiles = {"floppy_programmator_top.png", "floppy_programmator_bottom.png", "floppy_programmator_right.png",
 	         "floppy_programmator_left.png", "floppy_programmator_back.png", "floppy_programmator_front.png"},
 	groups = {cracky = 3},
 	sounds = default.node_sound_stone_defaults(),
 	on_construct = function(pos)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		inv:set_size("floppy", 1)
 		meta:set_int("selected", 1)
@@ -68,7 +68,7 @@ minetest.register_node("turtle:floppy_programmator",{
 		meta:set_string("formspec", s)
 	end,
 	can_dig = function(pos, player)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		return inv:is_empty("floppy")
 	end,
@@ -77,7 +77,7 @@ minetest.register_node("turtle:floppy_programmator",{
 		return 0
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		if fields.prog then
 			local inv = meta:get_inventory()
 			local prog = progs[fields.pselector]
@@ -117,7 +117,7 @@ function floppy.disk_digiline_receive(inv, channel, msg, disk_channel, send_func
 	end
 end
 
-minetest.register_node("turtle:disk",{
+core.register_node("turtle:disk",{
 	description = "Disk drive",
 	paramtype2 = "facedir",
 	tiles = {"floppy_drive_top.png", "floppy_drive_bottom.png", "floppy_drive_right.png", "floppy_drive_left.png", "floppy_drive_back.png", "floppy_drive_front.png"},
@@ -127,7 +127,7 @@ minetest.register_node("turtle:disk",{
 	{
 		receptor = {},
 		effector = {action = function(pos, node, channel, msg)
-			local meta = minetest.get_meta(pos)
+			local meta = core.get_meta(pos)
 			local inv = meta:get_inventory()
 			local disk_channel = meta:get_string("channel")
 			floppy.disk_digiline_receive(inv, channel, msg, disk_channel, function(msg)
@@ -136,7 +136,7 @@ minetest.register_node("turtle:disk",{
 		end},
 	},
 	on_construct = function(pos)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		inv:set_size("floppy", 1)
 		meta:set_string("channel", "")
@@ -146,7 +146,7 @@ minetest.register_node("turtle:disk",{
 					"list[current_player;main;0,1.5;8,4;]")
 	end,
 	can_dig = function(pos, player)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		local inv = meta:get_inventory()
 		return inv:is_empty("floppy")
 	end,
@@ -155,7 +155,7 @@ minetest.register_node("turtle:disk",{
 		return 0
 	end,
 	on_receive_fields = function(pos, formname, fields, sender)
-		local meta = minetest.get_meta(pos)
+		local meta = core.get_meta(pos)
 		fields.channel = fields.channel or meta:get_string("channel")
 		meta:set_string("channel", fields.channel)
 	end,

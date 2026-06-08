@@ -11,7 +11,7 @@ local function file_exists(name)
 end
 
 local function loadpkg(na)
-	local modpath = minetest.get_modpath("turtle")
+	local modpath = core.get_modpath("turtle")
 	local ol = package.cpath
 	local sp
 	if file_exists(modpath.."/INIT.LUA") then
@@ -33,7 +33,7 @@ local function loadpkg(na)
 	return nil
 end
 
-local modpath = minetest.get_modpath("turtle")
+local modpath = core.get_modpath("turtle")
 
 if bit32 == nil and jit == nil then
 	-- No need to use the library if LuaJIT is there, the Lua one is more efficient
