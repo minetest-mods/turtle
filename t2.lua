@@ -195,13 +195,11 @@ core.register_entity("turtle:turtle", {
 	physical = true,
 	collisionbox = {-0.4999, -0.4999, -0.4999, 0.4999, 0.4999, 0.4999}, -- Not 0.5 to avoid the turtle being stuck due to rounding errors
 	collides_with_objects = false,
-	--visual = "wielditem", -- TODO: change that to a mesh, and add animations
-	--visual_size = {x = 2/3, y = 2/3},
-	--textures = {"default:wood"},
+	-- TODO: add animations
 	visual = "mesh",
-	mesh = "turtle.obj",
+	mesh = "turtle.glb",
 	textures = {"turtle.png"},
-	visual_size = {x = 10, y = 10},
+	--visual_size = {x = 10, y = 10},
 	on_activate = function(self, staticdata)
 		local id = tonumber(staticdata)
 		if id ~= nil then
