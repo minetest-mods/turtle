@@ -5,9 +5,9 @@ local TURTLES_FORCE_LOAD = true	-- Useless for now, has to wait until force_load
 
 --TODO: Change serialization so that it supports functions
 local safe_serialize = function(value)
-	return minetest.serialize(value)
+	return core.serialize(value)
 end
-local safe_deserialize = minetest.deserialize
+local safe_deserialize = core.deserialize
 
 local turtle_invs
 local turtle_updates
@@ -30,19 +30,19 @@ end
 
 
 
-local wpath = minetest.get_worldpath()
+local wpath = core.get_worldpath()
 local function read_file(fn)
 	local f = io.open(fn, "r")
 	if f==nil then return {} end
 	local t = f:read("*all")
 	f:close()
 	if t=="" or t==nil then return {} end
-	return minetest.deserialize(t)
+	return core.deserialize(t)
 end
 
 local function write_file(fn, tbl)
 	local f = io.open(fn, "w")
-	f:write(minetest.serialize(tbl))
+	f:write(core.serialize(tbl))
 	f:close()
 end
 
@@ -55,7 +55,7 @@ turtle_updates_to_add={}
 
 local tupdate
 
-minetest.register_globalstep(function(dtime)
+core.register_globalstep(function(dtime)
 	for _, timer in ipairs(turtle_updates_to_add) do
 		table.insert(turtle_updates, timer)
 	end
@@ -76,7 +76,7 @@ local function turtle_add_update(time, update)
 	table.insert(turtle_updates_to_add, {time=time, update=update})
 end
 
-minetest.register_on_shutdown(function()
+core.register_on_shutdown(function()
 	for turtle,i in pairs(turtle_infos) do
 		i["turtle"]=nil
 		i["inventory"]=serialize_inv(turtle_invs:get_list(turtle))
@@ -110,9 +110,9 @@ end
 local update_formspec = function(turtle, code, errmsg, filename, player, exit)
 	local info = get_turtle_info(turtle)
 	info["code"]=code or ""
-	if minetest.formspec_escape then
-		code = minetest.formspec_escape(code or "")
-		errmsg = minetest.formspec_escape(errmsg or "")
+	if core.formspec_escape then
+		code = core.formspec_escape(code or "")
+		errmsg = core.formspec_escape(errmsg or "")
 	else
 		code = string.gsub(code or "", "%[", "(") -- would otherwise
 		code = string.gsub(code, "%]", ")") -- corrupt formspec
@@ -132,7 +132,7 @@ local update_formspec = function(turtle, code, errmsg, filename, player, exit)
 		"button[8,4.65;1,1;save;Save]"
 	info["heat"]=0
 	if exit==nil then
-		minetest.show_formspec(player:get_player_name(), turtle, info["formspec"])
+		core.show_formspec(player:get_player_name(), turtle, info["formspec"])
 	end
 end
 
@@ -223,7 +223,7 @@ local function v3add(v1,v2)
 end
 
 local function turtle_can_go(nname)
-	return nname=="air" or minetest.registered_nodes[nname].liquidtype~="none"
+	return nname=="air" or core.registered_nodes[nname].liquidtype~="none"
 end
 
 local function stack_set_count(stack, count)
@@ -282,7 +282,7 @@ local get_turtle_funcs = function(turtle)
 				local spos = info["spos"]
 				local dir = info["dir"]
 				info["npos"] = v3add(spos, getv(dir))
-				if not turtle_can_go(minetest.env:get_node(info["npos"]).name) then
+				if not turtle_can_go(core.env:get_node(info["npos"]).name) then
 					info["npos"]=nil
 					turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
 					return
@@ -307,7 +307,7 @@ local get_turtle_funcs = function(turtle)
 				local spos = info["spos"]
 				local dir = (info["dir"]+2)%4
 				info["npos"] = v3add(spos, getv(dir))
-				if not turtle_can_go(minetest.env:get_node(info["npos"]).name) then
+				if not turtle_can_go(core.env:get_node(info["npos"]).name) then
 					info["npos"]=nil
 					turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
 					return
@@ -331,7 +331,7 @@ local get_turtle_funcs = function(turtle)
 			if info["moveint"]==nil then
 				local spos = info["spos"]
 				info["npos"] = v3add(spos, {x=0,y=1,z=0})
-				if not turtle_can_go(minetest.env:get_node(info["npos"]).name) then
+				if not turtle_can_go(core.env:get_node(info["npos"]).name) then
 					info["npos"]=nil
 					turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
 					return
@@ -355,7 +355,7 @@ local get_turtle_funcs = function(turtle)
 			if info["moveint"]==nil then
 				local spos = info["spos"]
 				info["npos"] = v3add(spos, {x=0,y=-1,z=0})
-				if not turtle_can_go(minetest.env:get_node(info["npos"]).name) then
+				if not turtle_can_go(core.env:get_node(info["npos"]).name) then
 					info["npos"]=nil
 					turtle_add_update(0,{turtle=turtle, type="failmove", iid=iid})
 					return
@@ -399,68 +399,68 @@ local get_turtle_funcs = function(turtle)
 		detect = function()
 			local info = get_turtle_info(turtle)
 			local pos = v3add(info["spos"],getv(info["dir"]))
-			return minetest.env:get_node(pos).name
+			return core.env:get_node(pos).name
 		end,
 		detectup = function()
 			local info = get_turtle_info(turtle)
 			local pos = v3add(info["spos"],{x=0,y=1,z=0})
-			return minetest.env:get_node(pos).name
+			return core.env:get_node(pos).name
 		end,
 		detectdown = function()
 			local info = get_turtle_info(turtle)
 			local pos = v3add(info["spos"],{x=0,y=-1,z=0})
-			return minetest.env:get_node(pos).name
+			return core.env:get_node(pos).name
 		end,
 		dig = function()
 			local info = get_turtle_info(turtle)
 			local dpos = v3add(info["spos"],getv(info["dir"]))
-			local dnode = minetest.env:get_node(dpos)
+			local dnode = core.env:get_node(dpos)
 			if turtle_can_go(dnode.name) or dnode.name=="ignore" then return false end
-			local drops = minetest.get_node_drops(dnode.name, "default:pick_mese")
+			local drops = core.get_node_drops(dnode.name, "default:pick_mese")
 			local _, dropped_item
 			for _, dropped_item in ipairs(drops) do
 				local leftover = turtle_invs:add_item(turtle,dropped_item)
-				minetest.env:add_item(info["spos"],leftover)
+				core.env:add_item(info["spos"],leftover)
 			end
-			minetest.env:remove_node(dpos)
+			core.env:remove_node(dpos)
 			return true
 		end,
 		digup = function()
 			local info = get_turtle_info(turtle)
 			local dpos = v3add(info["spos"],{x=0,y=1,z=0})
-			local dnode = minetest.env:get_node(dpos)
+			local dnode = core.env:get_node(dpos)
 			if turtle_can_go(dnode.name) or dnode.name=="ignore" then return false end
-			local drops = minetest.get_node_drops(dnode.name, "default:pick_mese")
+			local drops = core.get_node_drops(dnode.name, "default:pick_mese")
 			local _, dropped_item
 			for _, dropped_item in ipairs(drops) do
 				local leftover = turtle_invs:add_item(turtle,dropped_item)
-				minetest.env:add_item(info["spos"],leftover)
+				core.env:add_item(info["spos"],leftover)
 			end
-			minetest.env:remove_node(dpos)
+			core.env:remove_node(dpos)
 			return true
 		end,
 		digdown = function()
 			local info = get_turtle_info(turtle)
 			local dpos = v3add(info["spos"],{x=0,y=-1,z=0})
-			local dnode = minetest.env:get_node(dpos)
+			local dnode = core.env:get_node(dpos)
 			if turtle_can_go(dnode.name) or dnode.name=="ignore" then return false end
-			local drops = minetest.get_node_drops(dnode.name, "default:pick_mese")
+			local drops = core.get_node_drops(dnode.name, "default:pick_mese")
 			local _, dropped_item
 			for _, dropped_item in ipairs(drops) do
 				local leftover = turtle_invs:add_item(turtle,dropped_item)
-				minetest.env:add_item(info["spos"],leftover)
+				core.env:add_item(info["spos"],leftover)
 			end
-			minetest.env:remove_node(dpos)
+			core.env:remove_node(dpos)
 			return true
 		end,
 		place = function(slot)
 			local info = get_turtle_info(turtle)
 			local ppos = v3add(info["spos"],getv(info["dir"]))
-			local dnode = minetest.env:get_node(ppos)
+			local dnode = core.env:get_node(ppos)
 			if (not turtle_can_go(dnode.name)) or dnode.name=="ignore" then return false end
 			local stack = turtle_invs:get_stack(turtle,slot)
-			if stack:is_empty() or minetest.registered_nodes[stack:get_name()]==nil then return false end
-			minetest.env:set_node(ppos, {name=stack:get_name()})
+			if stack:is_empty() or core.registered_nodes[stack:get_name()]==nil then return false end
+			core.env:set_node(ppos, {name=stack:get_name()})
 			stack:take_item()
 			turtle_invs:set_stack(turtle, slot, stack)
 			return true
@@ -468,11 +468,11 @@ local get_turtle_funcs = function(turtle)
 		placeup = function(slot)
 			local info = get_turtle_info(turtle)
 			local ppos = v3add(info["spos"],{x=0,y=1,z=0})
-			local dnode = minetest.env:get_node(ppos)
+			local dnode = core.env:get_node(ppos)
 			if (not turtle_can_go(dnode.name)) or dnode.name=="ignore" then return false end
 			local stack = turtle_invs:get_stack(turtle,slot)
-			if stack:is_empty() or minetest.registered_nodes[stack:get_name()]==nil then return false end
-			minetest.env:set_node(ppos, {name=stack:get_name()})
+			if stack:is_empty() or core.registered_nodes[stack:get_name()]==nil then return false end
+			core.env:set_node(ppos, {name=stack:get_name()})
 			stack:take_item()
 			turtle_invs:set_stack(turtle, slot, stack)
 			return true
@@ -480,11 +480,11 @@ local get_turtle_funcs = function(turtle)
 		placedown = function(slot)
 			local info = get_turtle_info(turtle)
 			local ppos = v3add(info["spos"],{x=0,y=-1,z=0})
-			local dnode = minetest.env:get_node(ppos)
+			local dnode = core.env:get_node(ppos)
 			if (not turtle_can_go(dnode.name)) or dnode.name=="ignore" then return false end
 			local stack = turtle_invs:get_stack(turtle,slot)
-			if stack:is_empty() or minetest.registered_nodes[stack:get_name()]==nil then return false end
-			minetest.env:set_node(ppos, {name=stack:get_name()})
+			if stack:is_empty() or core.registered_nodes[stack:get_name()]==nil then return false end
+			core.env:set_node(ppos, {name=stack:get_name()})
 			stack:take_item()
 			turtle_invs:set_stack(turtle, slot, stack)
 			return true
@@ -516,7 +516,7 @@ local get_turtle_funcs = function(turtle)
 		refuel = function(slot, nmax)
 			local info = get_turtle_info(turtle)
 			local stack = turtle_invs:get_stack(turtle, slot)
-			local fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {stack}})
+			local fuel, afterfuel = core.get_craft_result({method = "fuel", width = 1, items = {stack}})
 			if fuel.time<=0 then return false end
 			if nmax==nil then nmax=stack:get_count() end
 			local count = math.min(stack:get_count(), nmax)
@@ -524,7 +524,7 @@ local get_turtle_funcs = function(turtle)
 			fs["count"]=1
 			local fstack = ItemStack(fs)
 			local fuel, afterfuel
-			fuel, afterfuel = minetest.get_craft_result({method = "fuel", width = 1, items = {fstack}})
+			fuel, afterfuel = core.get_craft_result({method = "fuel", width = 1, items = {fstack}})
 			info["fuel"]=info["fuel"]+FUEL_EFFICIENCY*count*fuel.time
 			stack:take_item(count)
 			if afterfuel~=nil then
@@ -537,7 +537,7 @@ local get_turtle_funcs = function(turtle)
 				local leftover = stack:add_item(ItemStack(afterfuel))
 				turtle_invs:set_stack(turtle, slot, stack)
 				local leftover2 = turtle_invs:add_item(turtle, leftover)
-				minetest.env:add_item(info["spos"],leftover2)
+				core.env:add_item(info["spos"],leftover2)
 			else
 				turtle_invs:set_stack(turtle, slot, stack)
 			end
@@ -557,7 +557,7 @@ local get_turtle_funcs = function(turtle)
 					craftmax=math.min(craftmax, invl[i]:get_count())
 				end
 			end
-			local result,new=minetest.get_craft_result({method="normal",width=4,items=recipe})
+			local result,new=core.get_craft_result({method="normal",width=4,items=recipe})
 			if result.item:is_empty() then return 0 end
 			result=result.item
 			for i=1,16 do
@@ -566,12 +566,12 @@ local get_turtle_funcs = function(turtle)
 			end
 			result = stack_set_count(result, result:get_count()*craftmax)
 			local leftover = turtle_invs:add_item(turtle,result)
-			minetest.env:add_item(info["spos"],leftover)
+			core.env:add_item(info["spos"],leftover)
 			for i=1,16 do
 				local s=stack_set_count(new.items[i], new.items[i]:get_count()*craftmax)
 				if s~=nil then
 					local leftover = turtle_invs:add_item(turtle,s)
-					minetest.env:add_item(info["spos"],leftover)
+					core.env:add_item(info["spos"],leftover)
 				end
 			end
 		end,
@@ -605,15 +605,15 @@ local get_turtle_funcs = function(turtle)
 		suck = function()
 			local info = get_turtle_info(turtle)
 			local frompos=v3add(info["spos"],getv(info["dir"]))
-			local fromnode=minetest.env:get_node(frompos)
+			local fromnode=core.env:get_node(frompos)
 			local frominv
-			if not (minetest.registered_nodes[fromnode.name].tube and 
-				minetest.registered_nodes[fromnode.name].tube.input_inventory) then
-				for _,object in ipairs(minetest.env:get_objects_inside_radius(frompos, 1)) do
+			if not (core.registered_nodes[fromnode.name].tube and 
+				core.registered_nodes[fromnode.name].tube.input_inventory) then
+				for _,object in ipairs(core.env:get_objects_inside_radius(frompos, 1)) do
 					if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == "__builtin:item" then
 						if object:get_luaentity().itemstring ~= "" then
 							local leftover = turtle_invs:add_item(turtle,ItemStack(object:get_luaentity().itemstring))
-							minetest.env:add_item(info["spos"],leftover)
+							core.env:add_item(info["spos"],leftover)
 							object:get_luaentity().itemstring = ""
 							object:remove()
 							return
@@ -622,8 +622,8 @@ local get_turtle_funcs = function(turtle)
 				end
 				return
 			end
-			local frommeta=minetest.env:get_meta(frompos)
-			local frominvname=minetest.registered_nodes[fromnode.name].tube.input_inventory
+			local frommeta=core.env:get_meta(frompos)
+			local frominvname=core.registered_nodes[fromnode.name].tube.input_inventory
 			local frominv=frommeta:get_inventory()
 			for spos,stack in ipairs(frominv:get_list(frominvname)) do
 				if stack:get_name()~="" then
@@ -636,15 +636,15 @@ local get_turtle_funcs = function(turtle)
 		suckup = function()
 			local info = get_turtle_info(turtle)
 			local frompos=v3add(info["spos"],{x=0,y=1,z=0})
-			local fromnode=minetest.env:get_node(frompos)
+			local fromnode=core.env:get_node(frompos)
 			local frominv
-			if not (minetest.registered_nodes[fromnode.name].tube and 
-				minetest.registered_nodes[fromnode.name].tube.input_inventory) then
-				for _,object in ipairs(minetest.env:get_objects_inside_radius(frompos, 1)) do
+			if not (core.registered_nodes[fromnode.name].tube and 
+				core.registered_nodes[fromnode.name].tube.input_inventory) then
+				for _,object in ipairs(core.env:get_objects_inside_radius(frompos, 1)) do
 					if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == "__builtin:item" then
 						if object:get_luaentity().itemstring ~= "" then
 							local leftover = turtle_invs:add_item(turtle,ItemStack(object:get_luaentity().itemstring))
-							minetest.env:add_item(info["spos"],leftover)
+							core.env:add_item(info["spos"],leftover)
 							object:get_luaentity().itemstring = ""
 							object:remove()
 							return
@@ -653,8 +653,8 @@ local get_turtle_funcs = function(turtle)
 				end
 				return
 			end
-			local frommeta=minetest.env:get_meta(frompos)
-			local frominvname=minetest.registered_nodes[fromnode.name].tube.input_inventory
+			local frommeta=core.env:get_meta(frompos)
+			local frominvname=core.registered_nodes[fromnode.name].tube.input_inventory
 			local frominv=frommeta:get_inventory()
 			for spos,stack in ipairs(frominv:get_list(frominvname)) do
 				if stack:get_name()~="" then
@@ -667,15 +667,15 @@ local get_turtle_funcs = function(turtle)
 		suckdown = function()
 			local info = get_turtle_info(turtle)
 			local frompos=v3add(info["spos"],{x=0,y=-1,z=0})
-			local fromnode=minetest.env:get_node(frompos)
+			local fromnode=core.env:get_node(frompos)
 			local frominv
-			if not (minetest.registered_nodes[fromnode.name].tube and 
-				minetest.registered_nodes[fromnode.name].tube.input_inventory) then
-				for _,object in ipairs(minetest.env:get_objects_inside_radius(frompos, 1)) do
+			if not (core.registered_nodes[fromnode.name].tube and 
+				core.registered_nodes[fromnode.name].tube.input_inventory) then
+				for _,object in ipairs(core.env:get_objects_inside_radius(frompos, 1)) do
 					if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == "__builtin:item" then
 						if object:get_luaentity().itemstring ~= "" then
 							local leftover = turtle_invs:add_item(turtle,ItemStack(object:get_luaentity().itemstring))
-							minetest.env:add_item(info["spos"],leftover)
+							core.env:add_item(info["spos"],leftover)
 							object:get_luaentity().itemstring = ""
 							object:remove()
 							return
@@ -684,8 +684,8 @@ local get_turtle_funcs = function(turtle)
 				end
 				return
 			end
-			local frommeta=minetest.env:get_meta(frompos)
-			local frominvname=minetest.registered_nodes[fromnode.name].tube.input_inventory
+			local frommeta=core.env:get_meta(frompos)
+			local frominvname=core.registered_nodes[fromnode.name].tube.input_inventory
 			local frominv=frommeta:get_inventory()
 			for spos,stack in ipairs(frominv:get_list(frominvname)) do
 				if stack:get_name()~="" then
@@ -839,7 +839,7 @@ turtle_update = function (turtle, event)
 	save_memory(turtle, mem)
 end
 
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
 	if formname:sub(1,6)~="turtle" then return end
 	update_formspec(formname, fields.code, "", fields.filename, player, fields.exit)
 	if fields.program~=nil or fields.exit~=nil then
@@ -849,13 +849,13 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	end
 	if fields.save then
 		if fields.filename:sub(1,1)=="." then return end -- Not allowed to save because could change the user's files (including the mod's files, dangerous)
-		local fn = minetest.get_modpath("turtle").."/progs/"..fields.filename..".lua"
+		local fn = core.get_modpath("turtle").."/progs/"..fields.filename..".lua"
 		local f = io.open(fn, "w")
 		f:write(fields.code)
 		f:close()
 	end
 	if fields.open then
-		local fn = minetest.get_modpath("turtle").."/progs/"..fields.filename..".lua"
+		local fn = core.get_modpath("turtle").."/progs/"..fields.filename..".lua"
 		local f = io.open(fn, "r")
 		local code
 		if f==nil then
@@ -869,18 +869,18 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	end
 end)
 
-minetest.register_craftitem("turtle:turtle",{
+core.register_craftitem("turtle:turtle",{
 	description="Turtle",
 	image = "turtle_turtle_inv.png",
 	on_place = function(itemstack, placer, pointed_thing)
 		if pointed_thing.type~="node" then return end
-		local obj = minetest.env:add_entity(pointed_thing.above, "turtle:turtle")
+		local obj = core.env:add_entity(pointed_thing.above, "turtle:turtle")
 		itemstack:take_item()
 		return itemstack
 	end
 })
 
-minetest.register_craft( {
+core.register_craft( {
 	output = "turtle:turtle",
 	recipe = {
 		{ "default:diamond", "default:pick_mese", "default:diamond" },
@@ -889,7 +889,7 @@ minetest.register_craft( {
 	},
 })
 
-turtle_invs = minetest.create_detached_inventory("turtle:invs")
+turtle_invs = core.create_detached_inventory("turtle:invs")
 for turtle,i in pairs(turtle_infos) do
 	turtle_invs:set_size(turtle,16)
 	for l,stack in pairs(deserialize_inv(i["inventory"])) do
@@ -897,7 +897,7 @@ for turtle,i in pairs(turtle_infos) do
 	end
 end
 
-minetest.register_entity("turtle:turtle", {
+core.register_entity("turtle:turtle", {
 	physical = true,
 	force_load = TURTLES_FORCE_LOAD,
 	collisionbox = {-0.5,-0.5,-0.5, 0.5,0.5,0.5},
@@ -938,11 +938,11 @@ minetest.register_entity("turtle:turtle", {
 		end
 	end,
 	on_rightclick = function(self, clicker)
-		minetest.show_formspec(clicker:get_player_name(), self.n, get_turtle_info(self.n)["formspec"])
+		core.show_formspec(clicker:get_player_name(), self.n, get_turtle_info(self.n)["formspec"])
 	end,
 	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
 		self.object:remove()
-		minetest.env:add_item(turtle_infos[self.n]["spos"],"turtle:turtle")
+		core.env:add_item(turtle_infos[self.n]["spos"],"turtle:turtle")
 		for i=1,16 do
 			turtle_invs:set_stack(self.n, i, ItemStack(""))
 		end

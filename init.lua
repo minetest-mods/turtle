@@ -1,6 +1,6 @@
 turtles = {}
 
-local modpath = minetest.get_modpath("turtle")
+local modpath = core.get_modpath("turtle")
 
 -- Database handler (for turtles and floppies)
 dofile(modpath .. "/db.lua")
