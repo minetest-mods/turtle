@@ -1,10 +1,17 @@
-License of textures and models
-Textures and nodebox of screen are by kaeza, modified by Nore, under the WTFPL license
-Texture and model of turtle by kilbith, modified by Nore, under the CC0 license
-All other textures are by kaeza, licensed under the CC-BY-SA license
+# Media (CC BY-SA)
 
-------------------------------
-License of code
+All textures, unless stated otherwise are by kaeza, licensed under the [CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/legalcode.txt).
+
+## screen (WTFPL)
+Textures and nodebox of screen are by kaeza, modified by Nore, under the [WTFPL](https://www.wtfpl.net/txt/copying/).
+
+## turtle (CC0)
+Texture and model of turtle by kilbith, modified by Nore, converted to `.glb` and `.bbmodel` by Sheriff-Unit-3, under [CC0](https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt).
+
+
+---
+
+# Code (MIT)
 
 Copyright (C) 2014-2015  Nathanaël Courant (a.k.a. Nore/Novatux) (nore@mesecons.net)
 
